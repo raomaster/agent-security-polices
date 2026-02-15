@@ -1,0 +1,104 @@
+# PEA Security Policy — Base (always active)
+# Standards: OWASP ASVS 5.0, CWE/SANS Top 25 2025, NIST SP 800-218
+
+name: PEA Security Policy — Base
+version: "1.0"
+standards:
+  - OWASP ASVS 5.0
+  - CWE/SANS Top 25 2025
+  - NIST SP 800-218 (SSDF)
+  - OWASP Top 10 LLM 2025
+
+rules:
+  input_validation:
+    description: "Validate and sanitize ALL user inputs (ASVS V5, CWE-20)"
+    items:
+      - Validate at every trust boundary using allowlists, not denylists
+      - Parameterize ALL database queries — never concatenate user input (CWE-89)
+      - Validate file paths against path traversal attacks (CWE-22)
+      - Enforce type, length, range, and format constraints on all inputs
+      - Reject unexpected input rather than trying to sanitize it
+
+  output_encoding:
+    description: "Prevent XSS and injection via proper output handling (ASVS V5, CWE-79)"
+    items:
+      - Context-aware output encoding (HTML, JS, URL, CSS, SQL)
+      - Use Content-Security-Policy headers
+      - Never insert untrusted data into raw HTML/JS
+
+  secrets_management:
+    description: "Protect credentials and API keys (ASVS V6, CWE-798)"
+    items:
+      - NEVER hardcode secrets, API keys, tokens, or passwords in source code
+      - Use environment variables or a secrets manager (e.g., HashiCorp Vault)
+      - Never commit secrets to version control
+      - Validate that secrets are not placeholders before use
+      - Rotate credentials regularly
+
+  error_handling:
+    description: "Structured error handling (ASVS V7, CWE-755)"
+    items:
+      - Use a typed exception hierarchy — never raise bare Exception or generic errors
+      - Never expose stack traces, internal paths, or debug info to end users
+      - Log errors with severity, timestamp, correlation ID, and context
+      - Handle ALL resource cleanup via try/finally or context managers
+      - Return generic error messages to users while logging details internally
+
+  authentication:
+    description: "Proper authentication (CWE-306, CWE-287)"
+    items:
+      - Implement authentication for all critical functions
+      - Never store passwords in plaintext — use bcrypt/argon2/scrypt
+      - Enforce multi-factor authentication where appropriate
+      - Implement proper session management with secure defaults
+
+  authorization:
+    description: "Authorization on every request (CWE-862, CWE-863)"
+    items:
+      - Check authorization on every request, not just the UI
+      - Follow principle of least privilege
+      - Deny by default — explicitly grant access
+      - Validate authorization server-side, never client-side only
+
+  cryptography:
+    description: "Use proven cryptographic practices (ASVS V6)"
+    items:
+      - Use well-known, proven libraries — never roll your own crypto
+      - Use strong algorithms (AES-256, SHA-256+, RSA-2048+, Ed25519)
+      - Use proper key management and rotation
+      - Use TLS 1.2+ for all network communications
+
+  subprocess_execution:
+    description: "Safe subprocess handling (ASVS V5.3, CWE-78)"
+    items:
+      - NEVER use shell=True in subprocess calls
+      - Resolve binary paths via shutil.which() or absolute paths
+      - Validate and sanitize ALL subprocess arguments
+      - Set explicit timeouts on all subprocess calls
+      - Capture and validate stdout/stderr before using
+
+  dependencies:
+    description: "Supply chain security (SLSA, CWE-1035)"
+    items:
+      - Pin dependency versions (exact or narrow ranges)
+      - Audit dependencies for known CVEs before adoption
+      - Prefer well-maintained libraries with active security response teams
+      - Generate SBOM for deployed software
+      - Monitor for dependency vulnerabilities continuously
+
+  logging:
+    description: "Security-relevant logging (NIST AU-3, ASVS V7.3)"
+    items:
+      - Log authentication events (success and failure)
+      - Log authorization failures
+      - Log input validation failures
+      - Include timestamp, severity, source, correlation ID in every log
+      - Never log sensitive data (passwords, tokens, PII)
+
+  data_protection:
+    description: "Protect sensitive data (ASVS V8, CWE-200)"
+    items:
+      - Classify data by sensitivity and apply controls accordingly
+      - Encrypt sensitive data at rest and in transit
+      - Minimize PII collection and retention
+      - Implement proper data disposal when no longer needed

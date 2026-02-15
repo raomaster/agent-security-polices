@@ -1,0 +1,110 @@
+# OWASP ASVS 5.0 Audit Checklist for PEA Auditor
+# Mapped to the 17 chapters of ASVS 5.0
+
+name: OWASP ASVS 5.0 Audit Checklist
+version: "5.0"
+
+categories:
+  - id: V1
+    name: Architecture, Design and Threat Modeling
+    checks:
+      - Threat model documented for all new components
+      - Trust boundaries identified and input validated at each
+      - Security architecture reviewed for each module
+
+  - id: V2
+    name: Authentication
+    checks:
+      - All authentication uses proven mechanisms
+      - No default or weak credentials
+      - Password storage uses bcrypt/argon2/scrypt with proper cost
+
+  - id: V3
+    name: Session Management
+    checks:
+      - Sessions have timeouts and proper invalidation
+      - Session tokens are cryptographically random
+      - Session fixation attacks prevented
+
+  - id: V4
+    name: Access Control
+    checks:
+      - Least privilege enforced on all resources
+      - Authorization checked on every request server-side
+      - Deny by default — explicit allow required
+
+  - id: V5
+    name: Validation, Sanitization and Encoding
+    checks:
+      - All inputs validated against expected type, length, range
+      - SQL/NoSQL/OS/LDAP injection prevented via parameterization
+      - XSS prevented via context-aware output encoding
+      - File upload validated (type, size, content, name)
+      - HTTP header injection prevented
+
+  - id: V6
+    name: Stored Cryptography
+    checks:
+      - No hardcoded secrets, keys, or passwords in source
+      - Proper key management and rotation implemented
+      - Strong algorithms used (AES-256, SHA-256+)
+      - No deprecated crypto (MD5, SHA-1, DES, RC4)
+
+  - id: V7
+    name: Error Handling and Logging
+    checks:
+      - Errors do not leak sensitive information to users
+      - Security events logged with sufficient detail
+      - Logs include timestamp, severity, source, correlation ID
+      - Sensitive data never included in logs
+
+  - id: V8
+    name: Data Protection
+    checks:
+      - Sensitive data classified and protected accordingly
+      - PII minimized and encrypted at rest
+      - Data disposal implemented when no longer needed
+      - No sensitive data in URLs or query parameters
+
+  - id: V9
+    name: Communication
+    checks:
+      - TLS 1.2+ for all external communications
+      - Certificate validation enabled (no skip-verify)
+      - HSTS headers configured
+
+  - id: V10
+    name: Configuration
+    checks:
+      - Security headers configured (CSP, X-Frame-Options, etc.)
+      - No default configurations in production
+      - Dependency scanning enabled (SCA)
+
+  - id: V11
+    name: Business Logic
+    checks:
+      - Rate limiting on sensitive operations
+      - Anti-automation controls where appropriate
+      - Business logic tested for edge cases
+
+  - id: V12
+    name: Files and Resources
+    checks:
+      - File uploads restricted by type, size, and content validation
+      - Path traversal attacks prevented
+      - Temporary files cleaned up properly
+
+  - id: V13
+    name: API and Web Services
+    checks:
+      - API authentication on all endpoints
+      - Input validation on all API parameters
+      - Rate limiting on API endpoints
+      - API versioning implemented
+
+  - id: V14
+    name: Malicious Code
+    checks:
+      - No backdoors, easter eggs, or debug code in production
+      - No time bombs or logic bombs
+      - Dependencies audited for malicious code

@@ -1,0 +1,131 @@
+# CWE/SANS Top 25 Most Dangerous Software Weaknesses 2025
+# Source: MITRE/CISA, December 2025
+
+name: CWE/SANS Top 25 2025 Prevention Rules
+version: "2025"
+
+rules:
+  - rank: 1
+    cwe: CWE-79
+    name: Improper Neutralization of Input During Web Page Generation (XSS)
+    prevention: Context-aware output encoding; Content-Security-Policy header; never insert untrusted data into raw HTML/JS
+
+  - rank: 2
+    cwe: CWE-89
+    name: SQL Injection
+    prevention: Parameterized queries only; never concatenate user input into SQL; use ORM with caution
+
+  - rank: 3
+    cwe: CWE-352
+    name: Cross-Site Request Forgery (CSRF)
+    prevention: Anti-CSRF tokens on all state-changing requests; SameSite cookie attribute; verify Origin header
+
+  - rank: 4
+    cwe: CWE-22
+    name: Path Traversal
+    prevention: Resolve to canonical path and validate against allowed directory; reject ../ sequences
+
+  - rank: 5
+    cwe: CWE-125
+    name: Out-of-bounds Read
+    prevention: Bounds checking on all array/buffer access; use safe APIs with length parameters
+
+  - rank: 6
+    cwe: CWE-78
+    name: OS Command Injection
+    prevention: Never use shell=True; resolve binaries via shutil.which(); validate all arguments
+
+  - rank: 7
+    cwe: CWE-416
+    name: Use After Free
+    prevention: Nullify pointers after free; use smart pointers/RAII in C++; prefer memory-safe languages
+
+  - rank: 8
+    cwe: CWE-862
+    name: Missing Authorization
+    prevention: Check authorization on every request; deny by default; audit authorization gaps
+
+  - rank: 9
+    cwe: CWE-287
+    name: Improper Authentication
+    prevention: Use proven auth libraries; enforce MFA; no default credentials
+
+  - rank: 10
+    cwe: CWE-20
+    name: Improper Input Validation
+    prevention: Validate at every trust boundary; use allowlists; enforce type/length/range/format
+
+  - rank: 11
+    cwe: CWE-306
+    name: Missing Authentication for Critical Function
+    prevention: Require authentication for all sensitive operations; no anonymous access to admin
+
+  - rank: 12
+    cwe: CWE-502
+    name: Deserialization of Untrusted Data
+    prevention: Never deserialize untrusted data; use safe formats (JSON); validate schema before processing
+
+  - rank: 13
+    cwe: CWE-269
+    name: Improper Privilege Management
+    prevention: Principle of least privilege; separate admin/user roles; audit privilege escalation paths
+
+  - rank: 14
+    cwe: CWE-863
+    name: Incorrect Authorization
+    prevention: Test authorization with multiple roles; validate server-side; audit IDOR vulnerabilities
+
+  - rank: 15
+    cwe: CWE-476
+    name: NULL Pointer Dereference
+    prevention: Null checks before dereference; use Optional types; defensive programming
+
+  - rank: 16
+    cwe: CWE-798
+    name: Use of Hard-coded Credentials
+    prevention: Use environment variables or secret managers; never commit credentials; scan for leaked secrets
+
+  - rank: 17
+    cwe: CWE-190
+    name: Integer Overflow or Wraparound
+    prevention: Range validation; use safe arithmetic; check before operations that could overflow
+
+  - rank: 18
+    cwe: CWE-434
+    name: Unrestricted Upload of File with Dangerous Type
+    prevention: Validate file type by content (not extension); restrict upload directory; set size limits
+
+  - rank: 19
+    cwe: CWE-200
+    name: Exposure of Sensitive Information to an Unauthorized Actor
+    prevention: Classify data; encrypt at rest and in transit; minimize exposure; audit access logs
+
+  - rank: 20
+    cwe: CWE-77
+    name: Command Injection
+    prevention: Avoid system/exec calls; use parameterized APIs; validate and escape all arguments
+
+  - rank: 21
+    cwe: CWE-918
+    name: Server-Side Request Forgery (SSRF)
+    prevention: Validate and allowlist URLs; block internal/metadata endpoints; sanitize redirect targets
+
+  - rank: 22
+    cwe: CWE-362
+    name: Race Condition (TOCTOU)
+    prevention: Use atomic operations; file locking; avoid shared mutable state
+
+  - rank: 23
+    cwe: CWE-611
+    name: Improper Restriction of XML External Entity Reference (XXE)
+    prevention: Disable external entity processing in XML parsers; use JSON instead
+
+  - rank: 24
+    cwe: CWE-119
+    name: Buffer Overflow
+    prevention: Use memory-safe languages; bounds checking; safe string functions; ASLR/DEP
+
+  - rank: 25
+    cwe: CWE-94
+    name: Code Injection
+    prevention: Never use eval/exec on untrusted input; use sandboxed execution; CSP for web contexts

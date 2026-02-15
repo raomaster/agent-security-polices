@@ -1,0 +1,58 @@
+# OWASP Top 10 for LLM Applications 2025
+# Controls for PEA as an LLM application
+
+name: OWASP Top 10 LLM 2025 — PEA Controls
+version: "2025"
+
+risks:
+  - id: LLM01
+    name: Prompt Injection
+    controls:
+      - Separate system instructions from user-provided data with clear delimiters
+      - Never allow user input to override system-level security policies
+      - Validate LLM output before using it in downstream operations
+      - Apply output filtering to detect and remove injected instructions
+
+  - id: LLM02
+    name: Sensitive Information Disclosure
+    controls:
+      - Never include API keys, credentials, or PII in prompts
+      - Filter LLM output for accidentally disclosed secrets
+      - Limit context window to necessary information only
+
+  - id: LLM03
+    name: Supply Chain
+    controls:
+      - Pin LLM model versions where possible
+      - Audit and validate all prompt templates
+      - Verify integrity of policy files before loading
+
+  - id: LLM05
+    name: Improper Output Handling
+    controls:
+      - Never execute LLM output directly without validation
+      - Run SAST tools on generated code before deployment
+      - Apply the same security standards to generated code as human-written code
+
+  - id: LLM06
+    name: Excessive Agency
+    controls:
+      - Limit the actions the LLM can perform (file create/modify only, no delete)
+      - Require human approval for destructive operations
+      - Implement --dry-run mode for preview without execution
+      - Use sandboxed execution environments
+
+  - id: LLM07
+    name: System Prompt Leakage
+    controls:
+      - Filter output for fragments of system prompts or policy content
+      - Do not echo back security rules to the user
+      - Implement output post-processing to detect leakage
+
+  - id: LLM10
+    name: Unbounded Consumption
+    controls:
+      - Set maximum prompt length limits
+      - Set maximum retry limits per run
+      - Set timeout per stage and total timeout per run
+      - Monitor and report token usage
