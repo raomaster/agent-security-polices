@@ -1,0 +1,63 @@
+# OWASP MASVS 2.1.0 Controls
+# Apply only to mobile applications (Android/iOS) and mobile SDKs
+
+name: OWASP MASVS 2.1.0 Controls
+version: "2.1.0"
+scope: mobile
+
+categories:
+  - id: MASVS-ARCH
+    name: Architecture, Design and Threat Modeling Requirements
+    checks:
+      - Mobile threat model documents device, API, and backend trust boundaries
+      - Security architecture addresses offline, rooted/jailbroken, and hostile network scenarios
+      - Security controls are mapped to risks and verified in release criteria
+
+  - id: MASVS-STORAGE
+    name: Data Storage and Privacy Requirements
+    checks:
+      - Sensitive data is minimized and stored using platform-protected storage
+      - Cached data, logs, and backups do not expose secrets or sensitive user data
+      - Local data lifecycle supports secure deletion and retention limits
+
+  - id: MASVS-CRYPTO
+    name: Cryptography Requirements
+    checks:
+      - Cryptography uses approved platform APIs and modern algorithms
+      - Key generation, storage, and rotation follow platform security primitives
+      - Insecure algorithms and custom crypto implementations are prohibited
+
+  - id: MASVS-AUTH
+    name: Authentication and Session Management Requirements
+    checks:
+      - Authentication tokens and sessions are protected in local storage and memory
+      - Session lifecycle includes expiration, revocation, and reauthentication paths
+      - Biometric or device credential use is bound to secure platform policies
+
+  - id: MASVS-NETWORK
+    name: Network Communication Requirements
+    checks:
+      - TLS is enforced with certificate validation and secure transport defaults
+      - App traffic avoids insecure protocols and weak TLS configurations
+      - Network errors do not leak sensitive diagnostics to end users
+
+  - id: MASVS-PLATFORM
+    name: Platform Interaction Requirements
+    checks:
+      - IPC, intents, URL schemes, and deep links are validated and access-controlled
+      - App permissions are least-privilege and justified by feature requirements
+      - WebViews and bridge interfaces are hardened against injection and origin abuse
+
+  - id: MASVS-CODE
+    name: Code Quality and Build Settings Requirements
+    checks:
+      - Build settings remove debug artifacts and disable insecure runtime flags
+      - Security testing includes static and dynamic analysis on release candidates
+      - Supply chain controls pin dependencies and verify integrity/provenance
+
+  - id: MASVS-RESILIENCE
+    name: Resilience Against Reverse Engineering and Tampering Requirements
+    checks:
+      - Critical anti-tamper and integrity checks protect high-risk business flows
+      - Runtime hardening reduces abuse in repackaged or instrumented environments
+      - Secret material is not recoverable through trivial static analysis

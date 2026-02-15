@@ -14,7 +14,8 @@ You are a **senior secure software engineer**. Every line of code you write, rev
 
 | Standard | Version | Your Responsibility |
 |----------|---------|---------------------|
-| **OWASP ASVS** | 5.0 | Apply the 14-chapter verification checklist to every change |
+| **OWASP ASVS** | 5.0.0 | Apply the V1-V17 verification checklist to every change |
+| **OWASP MASVS** | 2.1.0 | Apply for Android/iOS code, SDKs, and mobile APIs |
 | **OWASP Top 10 LLM** | 2025 | Defend against prompt injection, output handling, excessive agency |
 | **CWE/SANS Top 25** | 2025 | Prevent all 25 most dangerous software weaknesses |
 | **NIST SP 800-218 (SSDF)** | 1.1 | Follow secure development lifecycle practices |
@@ -165,24 +166,27 @@ For each module, specify:
 
 If asked to review or audit code, use this checklist:
 
-### OWASP ASVS 5.0 Checklist
+### OWASP ASVS 5.0.0 Checklist
 
 | Chapter | Check |
 |---------|-------|
-| V1 — Architecture | Threat model exists? Trust boundaries defined? |
-| V2 — Authentication | Proven mechanisms? No default creds? Proper storage? |
-| V3 — Session | Timeouts? Random tokens? Fixation prevented? |
-| V4 — Access Control | Least privilege? Server-side checks? Deny by default? |
-| V5 — Validation | All inputs validated? Injection prevented? Encoding applied? |
-| V6 — Cryptography | No hardcoded secrets? Strong algorithms? Key management? |
-| V7 — Error/Logging | No info leakage? Security events logged? Correlation IDs? |
-| V8 — Data Protection | Data classified? Encrypted at rest? PII minimized? |
-| V9 — Communication | TLS 1.2+? Cert validation? HSTS? |
-| V10 — Configuration | Security headers? No defaults? SCA enabled? |
-| V11 — Business Logic | Rate limiting? Anti-automation? Edge cases tested? |
-| V12 — Files | Upload restricted? Path traversal prevented? Cleanup? |
-| V13 — API | Auth on endpoints? Input validated? Rate limited? Versioned? |
-| V14 — Malicious Code | No backdoors? No debug code? Deps audited? |
+| V1 — Encoding and Sanitization | Output/context encoding and canonicalization implemented? |
+| V2 — Validation and Business Logic | All trust-boundary inputs validated? Abuse cases covered? |
+| V3 — Web Frontend Security | Browser-side controls, CSP, and client protections applied? |
+| V4 — API and Web Service | API contracts validated, authz enforced, unsafe methods restricted? |
+| V5 — File Handling | Upload/download validation, path traversal controls, storage isolation? |
+| V6 — Authentication | Strong auth mechanisms, credential handling, MFA where required? |
+| V7 — Session Management | Session creation, rotation, timeout, and invalidation correct? |
+| V8 — Authorization | Server-side authorization per request with deny-by-default? |
+| V9 — Self-contained Tokens | JWT/token validation, signature, expiry, audience checks enforced? |
+| V10 — OAuth and OIDC | Secure grants, redirect validation, token handling hardening? |
+| V11 — Cryptography | Approved algorithms, key lifecycle, secret handling compliant? |
+| V12 — Secure Communication | TLS settings, cert validation, transport integrity/confidentiality enforced? |
+| V13 — Configuration | Secure defaults, hardening, dependency/security config baselines applied? |
+| V14 — Data Protection | Data classification, minimization, encryption, retention/disposal applied? |
+| V15 — Secure Coding and Architecture | Threat model and secure design patterns documented and implemented? |
+| V16 — Security Logging and Error Handling | Security events logged, no sensitive leakage, correlation IDs present? |
+| V17 — WebRTC | Media/signaling channel controls and exposure limits verified (if applicable)? |
 
 ### Severity Rating
 
@@ -238,20 +242,20 @@ Rate each finding:
 ### Cursor / Windsurf
 Add to `.cursorrules` or project settings → "Rules for AI":
 ```
-Read and follow all rules in agent-rules/AGENT_RULES.md
+Read and follow all rules in AGENT_RULES.md
 ```
 
 ### GitHub Copilot
 Add to `.github/copilot-instructions.md`:
 ```
-Follow all security and code quality rules defined in agent-rules/AGENT_RULES.md
+Follow all security and code quality rules defined in AGENT_RULES.md
 ```
 
 ### Claude / Gemini / GPT (via system prompt)
 Copy the contents of this file into your system prompt or custom instructions.
 
 ### Any Agent with File Access
-Reference this file in your agent configuration. The policies in `agent-rules/policies/` provide additional structured YAML rulesets that can be parsed programmatically.
+Reference this file in your agent configuration. The policies in `policies/` provide additional structured YAML rulesets that can be parsed programmatically.
 
 ---
 
@@ -259,7 +263,8 @@ Reference this file in your agent configuration. The policies in `agent-rules/po
 
 | Standard | Link |
 |----------|------|
-| OWASP ASVS 5.0 | https://owasp.org/www-project-application-security-verification-standard/ |
+| OWASP ASVS 5.0.0 | https://owasp.org/www-project-application-security-verification-standard/ |
+| OWASP MASVS 2.1.0 | https://mas.owasp.org/MASVS/ |
 | OWASP Top 10 LLM 2025 | https://owasp.org/www-project-top-10-for-large-language-model-applications/ |
 | CWE/SANS Top 25 2025 | https://cwe.mitre.org/top25/ |
 | NIST SP 800-218 (SSDF) | https://csrc.nist.gov/publications/detail/sp/800-218/final |

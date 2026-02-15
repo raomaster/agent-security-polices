@@ -7,7 +7,7 @@
 - [x] `AGENT_RULES.md` — Main system prompt (10 standards, 11 rule domains)
 - [x] `README.md` — Setup instructions for 10 agents/IDEs
 - [x] `policies/base_policy.yaml` — 11 security domains
-- [x] `policies/owasp_asvs.yaml` — ASVS 5.0 checklist (V1-V14)
+- [x] `policies/owasp_asvs.yaml` — ASVS 5.0.0 checklist (V1-V17)
 - [x] `policies/cwe_top25.yaml` — CWE/SANS Top 25 2025
 - [x] `policies/llm_security.yaml` — OWASP LLM Top 10 2025
 - [x] CWE mapping with prevention guidance
@@ -17,13 +17,13 @@
 
 ## v1.1 — Repo Essentials
 
-- [ ] `LICENSE` (Apache-2.0)
-- [ ] `CONTRIBUTING.md` — How to add rules, policies, and translations
-- [ ] `CHANGELOG.md` — Version history
-- [ ] `CODE_OF_CONDUCT.md`
-- [ ] `.gitignore`
-- [ ] GitHub Issue templates (new rule, new policy, bug)
-- [ ] GitHub PR template
+- [x] `LICENSE` (Apache-2.0)
+- [x] `CONTRIBUTING.md` — How to add rules, policies, and translations
+- [x] `CHANGELOG.md` — Version history
+- [x] `CODE_OF_CONDUCT.md`
+- [x] `.gitignore`
+- [x] GitHub Issue templates (new rule, new policy, bug)
+- [x] GitHub PR template
 
 ## v1.2 — Competitive Parity (from `continuedev/awesome-rules`)
 

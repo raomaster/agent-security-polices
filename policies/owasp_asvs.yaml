@@ -1,110 +1,125 @@
-# OWASP ASVS 5.0 Audit Checklist for PEA Auditor
-# Mapped to the 17 chapters of ASVS 5.0
+# OWASP ASVS 5.0.0 Audit Checklist
+# Aligned to official ASVS 5.0.0 chapters V1-V17
 
-name: OWASP ASVS 5.0 Audit Checklist
-version: "5.0"
+name: OWASP ASVS 5.0.0 Audit Checklist
+version: "5.0.0"
 
 categories:
   - id: V1
-    name: Architecture, Design and Threat Modeling
+    name: Encoding and Sanitization
     checks:
-      - Threat model documented for all new components
-      - Trust boundaries identified and input validated at each
-      - Security architecture reviewed for each module
+      - Output encoding is context-aware (HTML/JS/CSS/URL/header contexts)
+      - Canonicalization and sanitization are applied consistently before use
+      - Untrusted data is never rendered in executable contexts without protection
 
   - id: V2
-    name: Authentication
+    name: Validation and Business Logic
     checks:
-      - All authentication uses proven mechanisms
-      - No default or weak credentials
-      - Password storage uses bcrypt/argon2/scrypt with proper cost
+      - All trust-boundary inputs are validated for type, length, range, and format
+      - Business-rule abuse cases are tested (limits, sequencing, replay, fraud flows)
+      - Invalid or unexpected input is rejected with safe error behavior
 
   - id: V3
-    name: Session Management
+    name: Web Frontend Security
     checks:
-      - Sessions have timeouts and proper invalidation
-      - Session tokens are cryptographically random
-      - Session fixation attacks prevented
+      - Browser-side controls are configured (CSP, framing, MIME sniffing protection)
+      - Client-side storage avoids sensitive data or protects it appropriately
+      - Frontend routes and state-changing actions enforce anti-abuse controls
 
   - id: V4
-    name: Access Control
+    name: API and Web Service
     checks:
-      - Least privilege enforced on all resources
-      - Authorization checked on every request server-side
-      - Deny by default — explicit allow required
+      - API endpoints enforce authentication and authorization server-side
+      - Request payloads and parameters are schema-validated
+      - API responses avoid leaking internal implementation details
 
   - id: V5
-    name: Validation, Sanitization and Encoding
+    name: File Handling
     checks:
-      - All inputs validated against expected type, length, range
-      - SQL/NoSQL/OS/LDAP injection prevented via parameterization
-      - XSS prevented via context-aware output encoding
-      - File upload validated (type, size, content, name)
-      - HTTP header injection prevented
+      - File upload/download is restricted by type, size, and content validation
+      - File paths are canonicalized and protected against traversal
+      - Uploaded files are stored outside executable/public paths by default
 
   - id: V6
-    name: Stored Cryptography
+    name: Authentication
     checks:
-      - No hardcoded secrets, keys, or passwords in source
-      - Proper key management and rotation implemented
-      - Strong algorithms used (AES-256, SHA-256+)
-      - No deprecated crypto (MD5, SHA-1, DES, RC4)
+      - Authentication uses proven mechanisms and secure credential flows
+      - Default credentials and weak authentication factors are disallowed
+      - MFA is enforced where required by risk level
 
   - id: V7
-    name: Error Handling and Logging
+    name: Session Management
     checks:
-      - Errors do not leak sensitive information to users
-      - Security events logged with sufficient detail
-      - Logs include timestamp, severity, source, correlation ID
-      - Sensitive data never included in logs
+      - Session identifiers are unpredictable and protected in transit/storage
+      - Session rotation/invalidation is enforced on auth state changes
+      - Idle and absolute session timeouts are implemented
 
   - id: V8
-    name: Data Protection
+    name: Authorization
     checks:
-      - Sensitive data classified and protected accordingly
-      - PII minimized and encrypted at rest
-      - Data disposal implemented when no longer needed
-      - No sensitive data in URLs or query parameters
+      - Authorization is evaluated on every request for every protected resource
+      - Access control follows deny-by-default and least privilege
+      - Object-level authorization controls prevent IDOR-style attacks
 
   - id: V9
-    name: Communication
+    name: Self-contained Tokens
     checks:
-      - TLS 1.2+ for all external communications
-      - Certificate validation enabled (no skip-verify)
-      - HSTS headers configured
+      - Token signature, issuer, audience, and expiration are validated
+      - Token scope/claims are enforced server-side before sensitive actions
+      - Token revocation and rotation strategies exist for compromise scenarios
 
   - id: V10
-    name: Configuration
+    name: OAuth and OIDC
     checks:
-      - Security headers configured (CSP, X-Frame-Options, etc.)
-      - No default configurations in production
-      - Dependency scanning enabled (SCA)
+      - OAuth/OIDC flows use secure grant types and validated redirect URIs
+      - PKCE, nonce/state, and CSRF protections are enabled where applicable
+      - Tokens from identity providers are validated before trust is granted
 
   - id: V11
-    name: Business Logic
+    name: Cryptography
     checks:
-      - Rate limiting on sensitive operations
-      - Anti-automation controls where appropriate
-      - Business logic tested for edge cases
+      - Only approved, modern cryptographic algorithms and modes are used
+      - Keys, secrets, and certificates are managed with lifecycle controls
+      - Deprecated algorithms and insecure configurations are prohibited
 
   - id: V12
-    name: Files and Resources
+    name: Secure Communication
     checks:
-      - File uploads restricted by type, size, and content validation
-      - Path traversal attacks prevented
-      - Temporary files cleaned up properly
+      - TLS is enforced for external and sensitive internal communications
+      - Certificate validation is enabled without insecure bypasses
+      - Transport security settings prevent downgrade and weak cipher usage
 
   - id: V13
-    name: API and Web Services
+    name: Configuration
     checks:
-      - API authentication on all endpoints
-      - Input validation on all API parameters
-      - Rate limiting on API endpoints
-      - API versioning implemented
+      - Production runs with secure defaults and hardened configuration
+      - Security headers and platform hardening settings are enforced
+      - Dependency and runtime security configuration is reviewed regularly
 
   - id: V14
-    name: Malicious Code
+    name: Data Protection
     checks:
-      - No backdoors, easter eggs, or debug code in production
-      - No time bombs or logic bombs
-      - Dependencies audited for malicious code
+      - Sensitive data is classified and protected at rest and in transit
+      - Data minimization and retention limits are enforced
+      - Sensitive data is excluded from logs, URLs, and unnecessary replication
+
+  - id: V15
+    name: Secure Coding and Architecture
+    checks:
+      - Threat modeling is maintained for new features and trust boundaries
+      - Secure coding practices are enforced during implementation and review
+      - Architecture decisions include security tradeoff analysis
+
+  - id: V16
+    name: Security Logging and Error Handling
+    checks:
+      - Security-relevant events are logged with timestamp and correlation metadata
+      - Errors returned to users are generic and do not leak sensitive internals
+      - Logging pipelines protect integrity and confidentiality of audit data
+
+  - id: V17
+    name: WebRTC
+    checks:
+      - WebRTC media/signaling channels are authenticated and access-controlled
+      - ICE/STUN/TURN configuration avoids unnecessary network exposure
+      - WebRTC is disabled or restricted when not explicitly required

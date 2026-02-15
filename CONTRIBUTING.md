@@ -42,7 +42,8 @@ Every rule must be traceable to at least one of:
 
 | Standard | How to reference |
 |----------|-----------------|
-| OWASP ASVS 5.0 | `(ASVS V5.1)` |
+| OWASP ASVS 5.0.0 | `(ASVS V5.1)` |
+| OWASP MASVS 2.1.0 | `(MASVS-CRYPTO)` |
 | CWE/SANS Top 25 | `(CWE-79)` |
 | NIST SP 800-218 | `(NIST SSDF PW.5)` |
 | NIST SP 800-53 | `(NIST AU-3)` |
