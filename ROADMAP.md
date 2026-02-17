@@ -57,11 +57,90 @@ Agents auto-configured:
 
 ## Next Up
 
-### v1.3 — More Agents + Translators
+### v1.3 — Security Skills
 
-> **Goal:** Expand agent support and add a translator engine for auto-generating IDE-specific files.
+> **Goal:** Reusable agent skills that run real security tools (SAST, SCA, secrets, IaC) and let the agent remediate findings.
 
-**Priority: 🔴 High** — Cover more agents and reduce maintenance.
+**Priority: 🔴 High** — This is the core differentiator: real tools + AI remediation.
+
+**Detection skills** — each runs ONE tool, produces ONE type of finding:
+
+| Skill | Tool | Finding type | Output |
+|-------|------|-------------|--------|
+| `sast-scan` | Semgrep | **CWE** (code vulnerabilities) | SARIF/JSON |
+| `secrets-scan` | Gitleaks | **Secrets** (hardcoded credentials) | JSON |
+| `dependency-scan` | Trivy (fs mode) | **CVE** (vulnerable dependencies) | JSON |
+| `container-scan` | Trivy (image mode) | **CVE** (container image vulns) | JSON |
+| `iac-scan` | KICS (Checkmarx) | **Misconfigurations** (IaC) | JSON |
+
+**Analysis skills** — agent-driven, no external tool:
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `threat-model` | Component/feature description | STRIDE threat model (Markdown) |
+
+**Remediation skills** — agent takes scan output and proposes fixes:
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `fix-findings` | JSON output from any detection skill | Code changes based on AGENT_RULES.md |
+
+```
+sast-scan  ─────┐
+secrets-scan ───┤
+dependency-scan ┼──→ fix-findings ──→ remediated code
+container-scan ─┤
+iac-scan ───────┘
+```
+
+Skills are installed per-agent by `install.sh` / `install.ps1`:
+
+| Agent | Skills location |
+|-------|----------------|
+| Antigravity | `.agent/skills/*/SKILL.md` |
+| Claude CLI | `.claude/commands/*.md` |
+| Copilot | `.github/prompts/*.prompt.md` |
+| Codex CLI | Referenced in `AGENTS.md` |
+
+**Definition of Done:**
+- [ ] Each detection skill runs via Docker if tool not installed locally
+- [ ] Each skill outputs structured JSON with CWE/CVE mapping
+- [ ] `fix-findings` accepts output from any detection skill
+- [ ] `threat-model` generates STRIDE table for a given component
+- [ ] Skills work with Antigravity + Claude CLI (minimum)
+- [ ] `install.sh --all` installs skills in correct locations
+
+---
+
+### v1.4 — CLI Tool (npx)
+
+> **Goal:** `npx agent-security-policies` as an alternative delivery method. Wraps the same logic as install scripts.
+
+**Priority: 🟡 Medium** — Part of the delivery mechanism, critical for adoption in Node.js ecosystems.
+
+| Task | Notes |
+|------|-------|
+| npm package `agent-security-policies` | TypeScript CLI wrapping install script logic |
+| `--agent <name>` flag | Target: copilot, codex, claude, antigravity (+ more in v1.5) |
+| `--profile minimal\|standard\|strict` | Maps to config profiles from README |
+| `--list` flag | Show available agents and profiles |
+| Interactive mode | Prompt-based selection if no flags |
+| Publish to npm | `npx agent-security-policies` works out of the box |
+
+**Definition of Done:**
+- [ ] `npx agent-security-policies --agent copilot --profile strict` generates valid config
+- [ ] Published on npm
+- [ ] README documents all CLI flags
+
+---
+
+### v1.5 — More Agents + Optional Skills
+
+> **Goal:** Expand agent support and add optional quality/testing skills.
+
+**Priority: 🟡 Medium** — Broader coverage + quality complement to security skills.
+
+**Additional agents:**
 
 | Task | Notes |
 |------|-------|
@@ -73,30 +152,27 @@ Agents auto-configured:
 | `scripts/translate.py` — Translator engine | Reads `AGENT_RULES.md`, outputs all agent files at once |
 | GitHub Action: auto-generate on release | Publish IDE files as release assets |
 
+**Optional quality skills:**
+
+| Skill | Tool | Output | Notes |
+|-------|------|--------|-------|
+| `unit-test` | pytest / jest / go test | Cobertura XML / lcov | Coverage report compatible with SonarQube |
+| `quality-scan` | SonarQube Scanner | Code smells, duplication, coverage % | Consumes coverage report from `unit-test` |
+
+```
+unit-test (coverage) ──→ quality-scan (SonarQube) ──→ fix-findings
+```
+
 **Definition of Done:**
 - [ ] All 9 agents supported in install scripts
-- [ ] `./install.sh --all` generates configs for every supported agent
+- [ ] `unit-test` skill generates coverage in Cobertura XML format
+- [ ] `quality-scan` skill runs SonarQube Scanner with imported coverage
+- [ ] `fix-findings` also accepts SonarQube output
 - [ ] CI validates generated files
 
 ---
 
-### v1.4 — CLI Tool (optional, npx)
-
-> **Goal:** `npx agent-security-policies` as an alternative for users who have Node.js. Not the primary delivery.
-
-**Priority: 🟢 Low** — Nice to have, curl one-liner is the primary delivery.
-
-| Task | Notes |
-|------|-------|
-| npm package `agent-security-policies` | Wraps the same logic as install scripts |
-| `--profile minimal\|standard\|strict` | Maps to config profiles from README |
-| `--list` flag | Show available agents and profiles |
-| Interactive mode | Prompt-based selection if no flags |
-| Publish to npm | `npx agent-security-policies` works |
-
----
-
-### v1.5 — Agent Governance
+### v1.6 — Agent Governance
 
 > **Goal:** Define HOW agents should behave, not just WHAT code to produce. Inspired by `Baneeishaque/ai-agent-rules`.
 
@@ -116,7 +192,7 @@ Agents auto-configured:
 
 ---
 
-### v1.6 — Advanced Security Policies
+### v1.7 — Advanced Security Policies
 
 > **Goal:** Cover emerging threats and infrastructure security.
 
@@ -157,11 +233,12 @@ Agents auto-configured:
 > These guide all roadmap decisions.
 
 1. **Zero dependencies** — Install with `curl` or PowerShell. No Node.js, Python, or Docker required.
-2. **Principle-level rules, not language-specific** — The agent already knows how to apply "parameterized queries" in Python vs Go vs Java. We state the principle + CWE, the agent applies it.
-3. **Minimal token footprint** — `AGENT_RULES.md` is ~3K tokens. Every addition must justify its token cost. Bloating the context degrades agent quality ("lost in the middle").
-4. **Standards-backed** — Every rule maps to OWASP, CWE, NIST, or SLSA. No opinion-based rules without evidence.
-5. **Agent-agnostic** — Rules work with any AI agent. IDE-specific format is a translation concern, not a content concern.
-6. **Non-destructive** — Install scripts never overwrite existing configuration.
+2. **One tool per skill** — Each security skill runs exactly one tool and produces one type of finding (CWE ≠ CVE ≠ secret ≠ misconfiguration).
+3. **Principle-level rules, not language-specific** — The agent already knows how to apply "parameterized queries" in Python vs Go vs Java. We state the principle + CWE, the agent applies it.
+4. **Minimal token footprint** — `AGENT_RULES.md` is ~3K tokens. Every addition must justify its token cost. Bloating the context degrades agent quality ("lost in the middle").
+5. **Standards-backed** — Every rule maps to OWASP, CWE, NIST, or SLSA. No opinion-based rules without evidence.
+6. **Agent-agnostic** — Rules work with any AI agent. IDE-specific format is a translation concern, not a content concern.
+7. **Non-destructive** — Install scripts never overwrite existing configuration.
 
 ---
 
