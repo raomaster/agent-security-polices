@@ -102,11 +102,21 @@ Skills are installed per-agent by `install.sh` / `install.ps1`:
 | Copilot | `.github/prompts/*.prompt.md` |
 | Codex CLI | Referenced in `AGENTS.md` |
 
+**Compact version for local LLMs:**
+
+| Deliverable | Tokens | Use case |
+|-------------|--------|----------|
+| `AGENT_RULES.md` (standard) | ~3K | Cloud LLMs (GPT-4o, Claude, Gemini) |
+| `AGENT_RULES_LITE.md` (compact) | ~1K | Local LLMs (Ollama, LM Studio, llama.cpp) |
+
+The lite version keeps only the top rules + CWE IDs, no explanations. Install scripts select via `--profile lite`.
+
 **Definition of Done:**
 - [ ] Each detection skill runs via Docker if tool not installed locally
 - [ ] Each skill outputs structured JSON with CWE/CVE mapping
 - [ ] `fix-findings` accepts output from any detection skill
 - [ ] `threat-model` generates STRIDE table for a given component
+- [ ] `AGENT_RULES_LITE.md` exists and is ≤1K tokens
 - [ ] Skills work with Antigravity + Claude CLI (minimum)
 - [ ] `install.sh --all` installs skills in correct locations
 
@@ -134,7 +144,43 @@ Skills are installed per-agent by `install.sh` / `install.ps1`:
 
 ---
 
-### v1.5 — More Agents + Optional Skills
+### v1.5 — GitHub Pages + Community
+
+> **Goal:** Make the project visible, accessible, and shareable. A polished website is the face of the project.
+
+**Priority: 🟡 Medium** — Equal to delivery. No adoption without visibility.
+
+**Project website (GitHub Pages):**
+
+| Task | Notes |
+|------|-------|
+| Landing page with value proposition | Why use agent-security-policies? |
+| Interactive rule browser | Search/filter rules by standard, severity, CWE |
+| Quick start wizard | Select agent → copy one-liner → done |
+| Skills catalog | Browse available skills with descriptions |
+| Live demo / screenshots | Show what agents produce with rules active |
+| Badge generator | "Secured by agent-security-policies" for READMEs |
+| Docs site (auto-generated from repo) | `AGENT_RULES.md`, `ROADMAP.md`, policies rendered as pages |
+
+**Community outreach:**
+
+| Task | Notes |
+|------|-------|
+| Publish blog post / article | Dev.to, Medium, or personal blog |
+| Create social media presence | Twitter/X, LinkedIn, Reddit (r/netsec, r/devsecops) |
+| Submit to awesome lists | `awesome-security`, `awesome-llm`, `awesome-devsecops` |
+| Conference lightning talk / CFP | BSides, OWASP chapter, DevSecCon |
+| Community Discord or GitHub Discussions | Low-friction communication channel |
+
+**Definition of Done:**
+- [ ] GitHub Pages site live at `https://raomaster.github.io/agent-security-policies`
+- [ ] Badge SVG available and documented in README
+- [ ] At least 1 blog post / article published
+- [ ] Submitted to ≥3 awesome lists
+
+---
+
+### v1.6 — More Agents + Optional Skills
 
 > **Goal:** Expand agent support and add optional quality/testing skills.
 
@@ -172,7 +218,7 @@ unit-test (coverage) ──→ quality-scan (SonarQube) ──→ fix-findings
 
 ---
 
-### v1.6 — Agent Governance
+### v1.7 — Agent Governance
 
 > **Goal:** Define HOW agents should behave, not just WHAT code to produce. Inspired by `Baneeishaque/ai-agent-rules`.
 
@@ -192,7 +238,7 @@ unit-test (coverage) ──→ quality-scan (SonarQube) ──→ fix-findings
 
 ---
 
-### v1.7 — Advanced Security Policies
+### v1.8 — Advanced Security Policies
 
 > **Goal:** Cover emerging threats and infrastructure security.
 
@@ -220,9 +266,7 @@ unit-test (coverage) ──→ quality-scan (SonarQube) ──→ fix-findings
 | **MCP server config** for security scanning tools | 🟡 | From `lirantal/agent-rules` |
 | **Validation suite** — Vulnerable code samples + expected agent output | 🟡 | Test rule effectiveness |
 | **GitHub Action** — PR comment with security findings | 🟡 | Enforce policies in CI |
-| **Website** — Interactive rule browser + copy-paste wizard | 🟢 | Adoption driver |
 | **VS Code extension** — Auto-detect agent and apply rules | 🟢 | Frictionless setup |
-| **Badges** — "Secured by agent-security-policies" for READMEs | 🟢 | Community signal |
 | **Semgrep/CodeQL rules** that validate policy compliance | 🟢 | Bridge to SAST |
 | **Optional reference cheat sheets** (`references/python.md`, etc.) | 🟢 | Stack-specific gotchas, loaded on-demand only |
 
@@ -235,7 +279,7 @@ unit-test (coverage) ──→ quality-scan (SonarQube) ──→ fix-findings
 1. **Zero dependencies** — Install with `curl` or PowerShell. No Node.js, Python, or Docker required.
 2. **One tool per skill** — Each security skill runs exactly one tool and produces one type of finding (CWE ≠ CVE ≠ secret ≠ misconfiguration).
 3. **Principle-level rules, not language-specific** — The agent already knows how to apply "parameterized queries" in Python vs Go vs Java. We state the principle + CWE, the agent applies it.
-4. **Minimal token footprint** — `AGENT_RULES.md` is ~3K tokens. Every addition must justify its token cost. Bloating the context degrades agent quality ("lost in the middle").
+4. **Tiered token profiles** — Standard (~3K tokens) for cloud LLMs, Lite (~1K tokens) for local LLMs. Every addition must justify its token cost. Bloating the context degrades agent quality ("lost in the middle").
 5. **Standards-backed** — Every rule maps to OWASP, CWE, NIST, or SLSA. No opinion-based rules without evidence.
 6. **Agent-agnostic** — Rules work with any AI agent. IDE-specific format is a translation concern, not a content concern.
 7. **Non-destructive** — Install scripts never overwrite existing configuration.
