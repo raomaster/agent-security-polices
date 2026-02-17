@@ -4,6 +4,52 @@
 
 Use this repository as the canonical policy source in your project root.
 
+## Quick Install
+
+One command — zero dependencies. Copies `AGENT_RULES.md` + `policies/` and generates the config file your agent auto-detects.
+
+### Linux / macOS
+
+```bash
+# All agents (Copilot, Codex CLI, Claude CLI, Antigravity)
+curl -sSL https://raw.githubusercontent.com/raomaster/agent-security-policies/main/install.sh | bash -s -- --all
+
+# Specific agents only
+curl -sSL https://raw.githubusercontent.com/raomaster/agent-security-policies/main/install.sh | bash -s -- --agent copilot,claude
+```
+
+### Windows (PowerShell)
+
+```powershell
+# All agents
+irm https://raw.githubusercontent.com/raomaster/agent-security-policies/main/install.ps1 | iex
+
+# Or download and run with options
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/raomaster/agent-security-policies/main/install.ps1 -OutFile install.ps1
+.\install.ps1 -Agent copilot,codex,claude,antigravity
+```
+
+### From local clone
+
+```bash
+git clone https://github.com/raomaster/agent-security-policies.git
+cd agent-security-policies
+./install.sh --all --target /path/to/your/project
+```
+
+### What gets generated
+
+| Agent | File created | Auto-detected by |
+|-------|-------------|------------------|
+| GitHub Copilot | `.github/copilot-instructions.md` | VS Code + JetBrains |
+| Codex CLI | `AGENTS.md` | Codex CLI (OpenAI) |
+| Claude CLI | `CLAUDE.md` | Claude Code (Anthropic) |
+| Antigravity | `.agent/rules/security.md` | Gemini (Google) |
+
+All files reference `AGENT_RULES.md` with key rules inline. Non-destructive — existing files are not overwritten.
+
+---
+
 ## Contents
 
 ```
