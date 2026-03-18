@@ -168,11 +168,40 @@ Skills chain together: `sast-scan` → `fix-findings`, `dependency-scan` → `fi
 
 `agent-security-policies` ships with **3 user-invocable commands** that you can trigger directly in your agent session. Installed to `.opencode/command/` (oh-my-opencode) or the agent-specific commands directory.
 
-| Command | Invocation | Description |
+| Command | Invocation | When to use |
 |---------|-----------|-------------|
 | `security-review` | `/security-review` | Full 3-phase security audit: static analysis → dependency check → secrets scan |
-| `checkpoint` | `/checkpoint [label]` | Create a labeled git stash before risky operations |
-| `rollback` | `/rollback [label]` | Revert to a named checkpoint created by `/checkpoint` |
+| `checkpoint` | `/checkpoint [label]` | Before asking the agent to do something large or risky |
+| `rollback` | `/rollback [label]` | When the agent's output is not acceptable and you need to revert |
+
+### /checkpoint — manual safety net
+
+`/checkpoint` creates a labeled `git stash` of your current working tree, then immediately restores it (`git stash pop`). The stash stays as a recoverable backup while you continue working.
+
+**When to run it:**
+- Before a large refactor you are not sure about
+- Before asking the agent to touch auth, crypto, or session logic
+- Before a database schema migration
+- Before mass file deletions or moves
+- Before upgrading multiple dependencies at once
+
+**When NOT to run it:**
+- Before routine edits (typo fix, comment, formatting)
+- When the working tree is clean — git history already covers you
+
+> Aegis will suggest `/checkpoint` when it detects a high-risk task, but it will never invoke it automatically. The decision is always yours.
+
+```bash
+/checkpoint before-auth-refactor
+# ... let the agent work ...
+/rollback before-auth-refactor   # if something goes wrong
+```
+
+### /rollback — undo agent changes
+
+`/rollback [label]` restores the working tree to a named checkpoint. If no label is given, it lists available checkpoints and asks which one to restore.
+
+> Rollback is cheaper than trying to repair bad agent output with follow-up prompts. Roll back → improve the plan → retry.
 
 Install commands with:
 
