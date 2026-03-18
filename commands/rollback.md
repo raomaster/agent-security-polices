@@ -145,7 +145,7 @@ git stash list | grep "asp-checkpoint" | head -5
 
 - Understand why the agent's changes were not acceptable before retrying
 - Improve the instructions or context before the next attempt
-- Run `/checkpoint` before the next agent task to create a new safety net
+- If the next task is large or risky, run `/checkpoint` first as a safety net
 - Consider splitting the task into smaller pieces if it failed due to complexity
 
 > Rollback is cheaper than trying to repair bad agent output with additional prompts.

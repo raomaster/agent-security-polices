@@ -81,7 +81,7 @@ Systematically find and fix security vulnerabilities in code, infrastructure, an
 ## Working Method
 
 1. Read AGENT_RULES.md before any task
-2. Use /checkpoint before making changes
+2. Suggest /checkpoint to the user when the task involves large-scale refactoring, auth/crypto changes, schema migrations, or mass file deletions — never auto-invoke for routine tasks
 3. Select skill(s) for the request
 4. Execute following SKILL.md instructions
 5. Triage: CRITICAL → HIGH → MEDIUM → LOW → INFO
