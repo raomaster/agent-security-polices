@@ -2,7 +2,7 @@
 
 import * as readline from "node:readline";
 import { SUPPORTED_AGENTS, PROFILES, SKILLS_LIST } from "./agents.js";
-import { detectOhMyOpencode } from "./installer.js";
+import { detectOhMyOpenagent } from "./installer.js";
 import { bold, cyan, dim } from "./logger.js";
 
 interface InteractiveResult {
@@ -111,12 +111,12 @@ export async function interactiveMode(): Promise<InteractiveResult> {
         const gitignore =
             gitignoreAnswer.toLowerCase() === "y" || gitignoreAnswer.toLowerCase() === "yes";
 
-        // ── Install Aegis? (only if opencode selected + oh-my-opencode detected) ──
+        // ── Install Aegis? (only if opencode selected + oh-my-openagent detected) ──
         let omo = false;
         if (agents.includes("opencode")) {
-            const omoDetected = detectOhMyOpencode();
+            const omoDetected = detectOhMyOpenagent();
             if (omoDetected) {
-                console.log(dim("\n  oh-my-opencode detected on this system."));
+                console.log(dim("\n  oh-my-openagent detected on this system."));
                 const omoAnswer = await ask(
                     rl,
                     `  Install Aegis security agent? ${dim("(Y/n)")}: `
@@ -124,7 +124,7 @@ export async function interactiveMode(): Promise<InteractiveResult> {
                 omo =
                     omoAnswer.toLowerCase() !== "n" && omoAnswer.toLowerCase() !== "no";
             } else {
-                console.log(dim("\n  oh-my-opencode not detected — skipping Aegis (use --omo to override)."));
+                console.log(dim("\n  oh-my-openagent not detected — skipping Aegis (use --omo to override)."));
             }
         }
 

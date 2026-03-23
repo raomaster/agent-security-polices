@@ -157,7 +157,7 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
     {
         id: "opencode",
         name: "OpenCode",
-        description: "AI coding agent (oh-my-opencode compatible)",
+        description: "AI coding agent (oh-my-openagent compatible)",
         configPath: ".claude/rules/security.md",
         directories: [".claude", ".claude/rules", ".opencode", ".opencode/skills", ".opencode/command"],
         generateConfig: (instructions) =>

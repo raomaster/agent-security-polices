@@ -51,7 +51,7 @@ function copyIfMissing(src: string, dest: string, label: string): boolean {
     return true;
 }
 
-function stripYamlFrontmatter(content: string): string {
+export function stripYamlFrontmatter(content: string): string {
     const lines = content.split("\n");
     if (lines[0]?.trim() !== "---") return content;
 
@@ -67,18 +67,99 @@ function stripYamlFrontmatter(content: string): string {
     return lines.slice(endIndex + 1).join("\n").trimStart();
 }
 
-// ─── oh-my-opencode detection ────────────────────────────────────────
-export function detectOhMyOpencode(): boolean {
-    const configPath = path.join(os.homedir(), ".config", "opencode", "opencode.json");
-    if (!fs.existsSync(configPath)) return false;
-    try {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const plugins: unknown[] = config.plugins ?? [];
-        return plugins.some((p) => typeof p === "string" && p.includes("oh-my-opencode"));
-    } catch {
-        return false;
+// ─── JSONC support (strip comments before JSON.parse) ───────────────
+export function stripJsonComments(text: string): string {
+    let result = "";
+    let inString = false;
+    let escape = false;
+    let i = 0;
+
+    while (i < text.length) {
+        const ch = text[i];
+
+        if (escape) {
+            result += ch;
+            escape = false;
+            i++;
+            continue;
+        }
+
+        if (inString) {
+            if (ch === "\\") escape = true;
+            else if (ch === '"') inString = false;
+            result += ch;
+            i++;
+            continue;
+        }
+
+        // Line comment
+        if (ch === "/" && text[i + 1] === "/") {
+            while (i < text.length && text[i] !== "\n") i++;
+            continue;
+        }
+
+        // Block comment
+        if (ch === "/" && text[i + 1] === "*") {
+            i += 2;
+            while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++;
+            i += 2; // skip */
+            continue;
+        }
+
+        if (ch === '"') inString = true;
+        result += ch;
+        i++;
     }
+
+    return result;
 }
+
+// ─── oh-my-openagent detection ──────────────────────────────────────
+
+/**
+ * Build the list of config file paths to probe.
+ * Accepts an optional homeDir override for testing.
+ */
+export function getOmoConfigPaths(homeDir?: string): string[] {
+    const home = homeDir ?? os.homedir();
+    return [
+        // oh-my-openagent / oh-my-opencode JSONC configs (new format)
+        path.join(home, ".config", "opencode", "oh-my-opencode.jsonc"),
+        path.join(home, ".config", "opencode", "oh-my-opencode.json"),
+        // Legacy opencode.json
+        path.join(home, ".config", "opencode", "opencode.json"),
+    ];
+}
+
+/**
+ * Detect whether oh-my-openagent (or legacy oh-my-opencode) is installed.
+ * Checks JSONC and JSON config files in standard locations.
+ * @param homeDir — override home directory (for testing)
+ */
+export function detectOhMyOpenagent(homeDir?: string): boolean {
+    const configPaths = getOmoConfigPaths(homeDir);
+
+    for (const configPath of configPaths) {
+        if (!fs.existsSync(configPath)) continue;
+        try {
+            const raw = fs.readFileSync(configPath, "utf-8");
+            const cleaned = stripJsonComments(raw);
+            const config = JSON.parse(cleaned);
+            const plugins: unknown[] = config.plugin ?? config.plugins ?? [];
+            return plugins.some(
+                (p) =>
+                    typeof p === "string" &&
+                    (p.includes("oh-my-openagent") || p.includes("oh-my-opencode"))
+            );
+        } catch {
+            continue;
+        }
+    }
+    return false;
+}
+
+/** @deprecated Use detectOhMyOpenagent() instead */
+export const detectOhMyOpencode = detectOhMyOpenagent;
 
 // ─── Step 1: Core files ─────────────────────────────────────────────
 function installCoreFiles(targetDir: string, profile: string): void {

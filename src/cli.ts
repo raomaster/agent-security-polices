@@ -23,7 +23,7 @@ const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 const VERSION: string = pkg.version;
 
 // ─── Usage ──────────────────────────────────────────────────────────
-function showUsage(): void {
+export function showUsage(): void {
     banner();
     console.log(`  ${bold("Usage:")}  npx agent-security-policies [OPTIONS]\n`);
     console.log(`  ${bold("Options:")}`);
@@ -33,7 +33,7 @@ function showUsage(): void {
     console.log(`    --profile <name>     standard ${dim("(~3K tokens)")} or lite ${dim("(~1K tokens)")} ${dim("(default: standard)")}`);
     console.log(`    --target <dir>       Target project directory ${dim("(default: .)")}`);
     console.log(`    --gitignore          Add installed files to .gitignore ${dim("(default: off)")}`);
-    console.log(`    --omo                Install Aegis security agent ${dim("(OpenCode + oh-my-opencode)")}`);
+    console.log(`    --omo                Install Aegis security agent ${dim("(OpenCode + oh-my-openagent)")}`);
     console.log(`    --list               Show available agents, profiles, and skills`);
     console.log(`    --version, -v        Show version`);
     console.log(`    --help, -h           Show this help`);
@@ -48,7 +48,7 @@ function showUsage(): void {
 }
 
 // ─── List ───────────────────────────────────────────────────────────
-function showList(): void {
+export function showList(): void {
     banner();
 
     console.log(`  ${bold("Supported agents:")}\n`);
@@ -93,7 +93,7 @@ interface ParsedArgs {
     list: boolean;
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
+export function parseArgs(argv: string[]): ParsedArgs {
     const args: ParsedArgs = {
         all: false,
         agents: [],

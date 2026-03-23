@@ -1,7 +1,7 @@
 # agent-security-policies
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.1-green.svg)](CHANGELOG.md)
 [![OWASP ASVS](https://img.shields.io/badge/OWASP_ASVS-5.0.0-orange.svg)](policies/owasp_asvs.yaml)
 [![CWE Top 25](https://img.shields.io/badge/CWE_Top_25-2025-red.svg)](policies/cwe_top25.yaml)
 
@@ -57,7 +57,7 @@ npx agent-security-policies
 # Specific agents only
 npx agent-security-policies --agent copilot,claude --skills
 
-# OpenCode with oh-my-opencode (installs Aegis agent + commands)
+# OpenCode with oh-my-openagent (installs Aegis agent + commands)
 npx agent-security-policies --agent opencode --skills --omo
 
 # Local-only setup (files gitignored, each dev runs npx after clone)
@@ -106,7 +106,7 @@ cd agent-security-policies
 | Codex CLI | `AGENTS.md` | Codex CLI (OpenAI) |
 | Claude CLI | `CLAUDE.md` | Claude Code (Anthropic) |
 | Antigravity | `.agent/rules/security.md` | Gemini (Google) |
-| OpenCode | `.claude/rules/security.md` | oh-my-opencode |
+| OpenCode | `.claude/rules/security.md` | oh-my-openagent |
 
 All files reference `AGENT_RULES.md` with key rules inline. Non-destructive — existing files are never overwritten; security rules are appended with your confirmation.
 
@@ -166,7 +166,7 @@ Skills chain together: `sast-scan` → `fix-findings`, `dependency-scan` → `fi
 
 ## Agent Security Commands
 
-`agent-security-policies` ships with **3 user-invocable commands** that you can trigger directly in your agent session. Installed to `.opencode/command/` (oh-my-opencode) or the agent-specific commands directory.
+`agent-security-policies` ships with **3 user-invocable commands** that you can trigger directly in your agent session. Installed to `.opencode/command/` (oh-my-openagent) or the agent-specific commands directory.
 
 | Command | Invocation | When to use |
 |---------|-----------|-------------|
@@ -493,15 +493,15 @@ Edit `.continue/config.json`:
 
 ### OpenCode
 
-OpenCode reads rules from `.claude/rules/` automatically via oh-my-opencode.
+OpenCode reads rules from `.claude/rules/` automatically via oh-my-openagent.
 
-#### Vanilla mode (without oh-my-opencode)
+#### Vanilla mode (without oh-my-openagent)
 
 Place `AGENT_RULES.md` at project root. OpenCode will pick it up if you reference it in your session.
 
-#### With oh-my-opencode (recommended)
+#### With oh-my-openagent (recommended)
 
-oh-my-opencode discovers rules, skills, and commands from standard directories:
+oh-my-openagent discovers rules, skills, and commands from standard directories:
 
 ```bash
 # Install rules + skills + Aegis agent + commands
@@ -523,7 +523,7 @@ This creates:
 
 ### Aegis Security Agent
 
-**Aegis** is a specialized security subagent installed to `.claude/agents/aegis.md` when using OpenCode with oh-my-opencode (`--omo`).
+**Aegis** is a specialized security subagent installed to `.claude/agents/aegis.md` when using OpenCode with oh-my-openagent (`--omo`).
 
 Aegis is activated automatically (`mode: all`) on every task — it shadows the main agent and enforces security constraints proactively, rather than reactively. It operates with:
 

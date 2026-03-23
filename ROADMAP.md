@@ -86,7 +86,7 @@ Agents auto-configured:
 
 | Deliverable | Status |
 |-------------|--------|
-| OpenCode agent (vanilla + oh-my-opencode enhanced mode via `--omo`) | ✅ |
+| OpenCode agent (vanilla + oh-my-openagent enhanced mode via `--omo`) | ✅ |
 | Aegis security agent (`.claude/agents/aegis.md`) | ✅ |
 | `skills/security-review/` — 8th skill (no Docker) | ✅ |
 | `commands/` — security-review, checkpoint, rollback | ✅ |

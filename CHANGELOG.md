@@ -4,11 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] — 2026-03-23
+
+### Added
+
+- **Test suite** — 158 tests across 6 files, 80%+ coverage on all thresholds (Vitest + V8)
+  - `src/__tests__/agents.test.ts` — full coverage of agent configs, AEGIS_AGENT_CONTENT, skills, commands, profiles
+  - `src/__tests__/installer.test.ts` — `stripJsonComments`, `stripYamlFrontmatter`, `detectOhMyOpenagent`, `install()` end-to-end for all 5 agents
+  - `src/__tests__/installer-confirm.test.ts` — `confirmAppend` flow with readline mock
+  - `src/__tests__/cli.test.ts` — `parseArgs` (all flags and combinations), `showUsage`, `showList`
+  - `src/__tests__/prompts.test.ts` — `interactiveMode` with readline mock, all branches covered (100% branch coverage)
+  - `src/__tests__/integration.test.ts` — naming conventions, OmO discipline agent format, cross-agent compatibility
+- `vitest.config.ts` — coverage config with 80% global thresholds (lines, branches, functions, statements), LCOV reporter for SonarQube/Codecov
+- `stripJsonComments()` exported from `installer.ts` — state-machine JSONC parser (handles `//`, `/* */`, preserves strings)
+- `getOmoConfigPaths(homeDir?)` exported from `installer.ts` — testable config path resolution with optional homeDir injection
+- `stripYamlFrontmatter()` exported from `installer.ts` — previously private
+- `parseArgs()`, `showUsage()`, `showList()` exported from `cli.ts` — enables unit testing
+- `test`, `test:watch`, `test:coverage` scripts in `package.json`
+- `@vitest/coverage-v8` devDependency
+- `oh-my-openagent` keyword in `package.json`
+
+### Changed
+
+- **oh-my-opencode → oh-my-openagent** — project was renamed upstream; all references updated across `src/`, `install.sh`, `install.ps1`, `README.md`, `CHANGELOG.md`, `ROADMAP.md`
+- `detectOhMyOpenagent()` replaces `detectOhMyOpencode()` with:
+  - JSONC support (JSON with comments, the new OmO config format)
+  - Checks 3 config paths in priority order: `oh-my-opencode.jsonc` → `oh-my-opencode.json` → `opencode.json` (legacy)
+  - Supports both `"plugin"` key (new OmO standard) and `"plugins"` key (legacy)
+  - Detects both `"oh-my-openagent"` and legacy `"oh-my-opencode"` plugin strings
+  - Optional `homeDir` parameter for dependency injection in tests
+- `detectOhMyOpencode()` kept as a deprecated alias for backward compatibility
+- `src/__tests__/` excluded from TypeScript compilation (`tsconfig.json`)
+
 ## [1.5.0] — 2026-03-18
 
 ### Added
 
-- OpenCode agent support (vanilla + oh-my-opencode enhanced mode via `--omo`)
+- OpenCode agent support (vanilla + oh-my-openagent enhanced mode via `--omo`)
 - Aegis security agent (`.claude/agents/aegis.md`) — specialized subagent with `mode: all`, installed when `--omo` is active
 - `skills/security-review/` — 8th skill, no Docker required, 3-phase methodology (static analysis → dependency check → secrets scan)
 - `commands/security-review.md` — user-invocable `/security-review` command

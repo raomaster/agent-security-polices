@@ -1,6 +1,6 @@
 {
   "name": "agent-security-policies",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Portable, standards-backed security policies for any AI coding agent. One command to install OWASP, CWE, NIST rules + security skills.",
   "keywords": [
     "security",
@@ -15,7 +15,8 @@
     "devsecops",
     "sast",
     "secure-coding",
-    "opencode"
+    "opencode",
+    "oh-my-openagent"
   ],
   "author": "raomaster",
   "license": "Apache-2.0",
@@ -43,13 +44,18 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.1.1",
     "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "vitest": "^4.1.1"
   }
 }

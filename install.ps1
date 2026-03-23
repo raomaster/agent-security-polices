@@ -69,7 +69,7 @@ function Show-Usage {
     Write-Host "    codex         OpenAI Codex CLI"
     Write-Host "    claude        Claude CLI (Claude Code)"
     Write-Host "    antigravity   Google Antigravity (Gemini)"
-    Write-Host "    opencode      OpenCode (oh-my-opencode compatible)"
+    Write-Host "    opencode      OpenCode (oh-my-openagent compatible)"
     Write-Host ""
     Write-Host "  Skills (use -Skills to install):"
     Write-Host "    sast-scan         Semgrep - CWE code vulnerabilities"

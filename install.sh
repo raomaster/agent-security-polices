@@ -71,7 +71,7 @@ Supported agents:
   codex         OpenAI Codex CLI
   claude        Claude CLI (Claude Code)
   antigravity   Google Antigravity (Gemini)
-  opencode      OpenCode (oh-my-opencode compatible)
+  opencode      OpenCode (oh-my-openagent compatible)
 
 Skills (use --skills to install):
   sast-scan         Semgrep — CWE code vulnerabilities
