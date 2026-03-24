@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.2] — 2026-03-23
+
+### Added
+
+- **Aegis for Claude Code** — `--aegis` flag installs Aegis as a `.claude/agents/` subagent, enabling isolated on-demand security review without bloating the main conversation context
+  - `claude --agent aegis` makes Aegis the primary agent for a full session (session-wide coverage)
+  - `.claude/agents/aegis.md` — Claude Code subagent with description-based auto-delegation
+- **`--aegis` CLI flag** — installs Aegis for any selected agent: `.claude/agents/aegis.md` for `claude`, `.opencode/agents/aegis.md` for `opencode` (without `--omo`)
+- Interactive mode now asks about Aegis for Claude Code when `claude` agent is selected
+- `installAegisAgent(targetDir, agentId)` accepts agent ID to route to correct path
+
+### Changed
+
+- `installAegisAgent()` now accepts `agentId: "opencode" | "claude"` parameter — OpenCode path unchanged (`.opencode/agents/aegis.md`)
+- `InstallOptions` gains `aegis: boolean` field
+- README: added complete Claude Code CLI section (was missing), layered security model explanation, Aegis comparison table (OpenCode `mode: all` vs Claude Code on-demand delegation)
+- Version badge updated to 1.5.2
+
+### Fixed
+
+- Aegis install path for OpenCode corrected to `.opencode/agents/aegis.md` (was `.claude/agents/` which is Claude Code's convention, not OpenCode's)
+- Test count: 164 tests (+6), all thresholds >80% (branches: 82.86%)
+
 ## [1.5.1] — 2026-03-23
 
 ### Added
