@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.3] — 2026-03-24
+
+### Fixed
+
+- `detectOhMyOpenagent()` now probes `oh-my-openagent.json[c]` (new filename after project rename) — users who migrated to the new name were never detected, causing Aegis prompt to be skipped silently
+- `detectOhMyOpenagent()` strips trailing commas before `JSON.parse` — valid JSONC files with trailing commas were silently treated as malformed
+- `detectOhMyOpenagent()` falls through to remaining config paths when a file exists but has no plugin entry — plugin declared in `opencode.json` was masked by a sibling `oh-my-openagent.jsonc` with agent settings
+- `getOmoConfigPaths()` expanded from 3 to 6 paths: `oh-my-openagent.jsonc`, `oh-my-openagent.json`, `oh-my-opencode.jsonc`, `oh-my-opencode.json`, `opencode.jsonc`, `opencode.json`
+- Tests: 172 (+8 covering all 3 bug scenarios)
+
 ## [1.5.2] — 2026-03-23
 
 ### Added
