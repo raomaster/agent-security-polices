@@ -342,14 +342,15 @@ OPENCODE_EOF
       fi
 
       # Install Aegis agent if --omo
+      # OpenCode discovers agents from .opencode/agents/ (per-project)
       if [[ "$INSTALL_OMO" == true ]]; then
-        AEGIS_DIR="$TARGET_DIR/.claude/agents"
+        AEGIS_DIR="$TARGET_DIR/.opencode/agents"
         AEGIS_FILE="$AEGIS_DIR/aegis.md"
         mkdir -p "$AEGIS_DIR"
         if [[ -f "$AEGIS_FILE" ]]; then
-          warn ".claude/agents/aegis.md already exists — skipping"
+          warn ".opencode/agents/aegis.md already exists — skipping"
         else
-          fetch_file ".claude/agents/aegis.md" "$AEGIS_FILE" 2>/dev/null || {
+          fetch_file ".opencode/agents/aegis.md" "$AEGIS_FILE" 2>/dev/null || {
             # Generate inline if remote fetch fails (local mode or not yet pushed)
             cat > "$AEGIS_FILE" <<'AEGIS_EOF'
 ---
@@ -392,7 +393,7 @@ Systematically find and fix security vulnerabilities in code, infrastructure, an
 Never force push. Never --no-verify. Never `git add -A` blindly. Never modify git config. Never commit .env. See Rule 12 in AGENT_RULES.md.
 AEGIS_EOF
           }
-          ok ".claude/agents/aegis.md — Aegis security agent installed"
+          ok ".opencode/agents/aegis.md — Aegis security agent installed"
         fi
       fi
       ;;
@@ -575,7 +576,7 @@ CLAUDE.md" ;;
 .agent/rules/security.md" ;;
       opencode)    ENTRIES="$ENTRIES
 .claude/rules/security.md
-.claude/agents/" ;;
+.opencode/agents/" ;;
     esac
   done
 
@@ -637,7 +638,7 @@ info "Agents configured: $AGENTS"
 info "Profile: $PROFILE"
 [[ "$INSTALL_SKILLS" == true ]] && info "Skills installed: $(echo $SKILLS_LIST | tr ' ' ', ')"
 [[ "$INSTALL_SKILLS" == true ]] && info "Commands installed: $(echo $COMMANDS_LIST | tr ' ' ', ')"
-[[ "$INSTALL_OMO" == true ]] && info "Aegis security agent installed (.claude/agents/aegis.md)"
+[[ "$INSTALL_OMO" == true ]] && info "Aegis security agent installed (.opencode/agents/aegis.md)"
 [[ "$INSTALL_GITIGNORE" == true ]] && info "Installed files added to .gitignore"
 echo ""
 echo -e "${BOLD}Next steps:${NC}"

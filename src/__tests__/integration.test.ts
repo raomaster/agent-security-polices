@@ -49,9 +49,9 @@ describe("Aegis OmO discipline agent format", () => {
         expect(AEGIS_AGENT_CONTENT).toContain("model: sonnet");
     });
 
-    it("installed to .claude/agents/ — OmO standard location", () => {
+    it("installed to .opencode/agents/ — OpenCode per-project agent discovery path", () => {
         const oc = getAgentById("opencode")!;
-        expect(oc.extraPaths).toContain(".claude/agents/");
+        expect(oc.extraPaths).toContain(".opencode/agents/");
     });
 });
 

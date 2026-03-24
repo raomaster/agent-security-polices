@@ -333,8 +333,8 @@ describe("install() — opencode vanilla (no skills, no omo)", () => {
         expect(fs.readdirSync(skillsDir)).toHaveLength(0);
     });
 
-    it("does NOT create .claude/agents/aegis.md (omo:false)", () => {
-        expect(fs.existsSync(path.join(tmpDir, ".claude", "agents", "aegis.md"))).toBe(false);
+    it("does NOT create .opencode/agents/aegis.md (omo:false)", () => {
+        expect(fs.existsSync(path.join(tmpDir, ".opencode", "agents", "aegis.md"))).toBe(false);
     });
 });
 
@@ -417,15 +417,15 @@ describe("install() — opencode with omo (Aegis discipline agent)", () => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it("creates .claude/agents/aegis.md", () => {
+    it("creates .opencode/agents/aegis.md", () => {
         expect(
-            fs.existsSync(path.join(tmpDir, ".claude", "agents", "aegis.md"))
+            fs.existsSync(path.join(tmpDir, ".opencode", "agents", "aegis.md"))
         ).toBe(true);
     });
 
     it("aegis.md content matches AEGIS_AGENT_CONTENT exactly", () => {
         const written = fs.readFileSync(
-            path.join(tmpDir, ".claude", "agents", "aegis.md"),
+            path.join(tmpDir, ".opencode", "agents", "aegis.md"),
             "utf-8"
         );
         expect(written).toBe(AEGIS_AGENT_CONTENT);
@@ -433,7 +433,7 @@ describe("install() — opencode with omo (Aegis discipline agent)", () => {
 
     it("aegis.md is a valid discipline agent with name: Aegis", () => {
         const content = fs.readFileSync(
-            path.join(tmpDir, ".claude", "agents", "aegis.md"),
+            path.join(tmpDir, ".opencode", "agents", "aegis.md"),
             "utf-8"
         );
         expect(content).toContain("name: Aegis");
@@ -453,7 +453,7 @@ describe("install() — opencode with omo (Aegis discipline agent)", () => {
                 omo: true,
             });
             expect(
-                fs.existsSync(path.join(tmp2, ".claude", "agents", "aegis.md"))
+                fs.existsSync(path.join(tmp2, ".opencode", "agents", "aegis.md"))
             ).toBe(false);
         } finally {
             fs.rmSync(tmp2, { recursive: true, force: true });
@@ -486,7 +486,7 @@ describe("install() — gitignore management", () => {
         expect(content).toContain("AGENT_RULES.md");
         expect(content).toContain(".claude/rules/security.md");
         expect(content).toContain(".opencode/skills/");
-        expect(content).toContain(".claude/agents/");
+        expect(content).toContain(".opencode/agents/");
     });
 
     it("appends to existing .gitignore without markers", async () => {

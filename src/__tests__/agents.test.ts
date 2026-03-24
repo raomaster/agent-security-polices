@@ -81,9 +81,9 @@ describe("OpenCode agent", () => {
         });
     });
 
-    it("has extraPaths for .claude/agents/", () => {
+    it("has extraPaths for .opencode/agents/", () => {
         const oc = getAgentById("opencode")!;
-        expect(oc.extraPaths).toContain(".claude/agents/");
+        expect(oc.extraPaths).toContain(".opencode/agents/");
     });
 
     it("generates config with YAML frontmatter", () => {

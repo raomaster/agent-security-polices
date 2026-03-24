@@ -159,7 +159,7 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
         name: "OpenCode",
         description: "AI coding agent (oh-my-openagent compatible)",
         configPath: ".claude/rules/security.md",
-        directories: [".claude", ".claude/rules", ".opencode", ".opencode/skills", ".opencode/command"],
+        directories: [".claude", ".claude/rules", ".opencode", ".opencode/skills", ".opencode/command", ".opencode/agents"],
         generateConfig: (instructions) =>
             `---\ndescription: Security policy — OWASP ASVS 5.0.0, CWE Top 25 2025, NIST SSDF, OWASP Proactive Controls 2024\nalwaysApply: true\n---\n\n${instructions}\n`,
         skillFormat: {
@@ -170,7 +170,7 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
             type: "copy",
             destPattern: ".opencode/command/{command}.md",
         },
-        extraPaths: [".claude/agents/"],
+        extraPaths: [".opencode/agents/"],
     },
 ];
 

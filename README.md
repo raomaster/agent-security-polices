@@ -517,13 +517,13 @@ This creates:
 - `.opencode/command/security-review.md` — `/security-review` command
 - `.opencode/command/checkpoint.md` — `/checkpoint` command
 - `.opencode/command/rollback.md` — `/rollback` command
-- `.claude/agents/aegis.md` — Aegis security subagent (see below)
+- `.opencode/agents/aegis.md` — Aegis security subagent (see below)
 
 ---
 
 ### Aegis Security Agent
 
-**Aegis** is a specialized security subagent installed to `.claude/agents/aegis.md` when using OpenCode with oh-my-openagent (`--omo`).
+**Aegis** is a specialized security subagent installed to `.opencode/agents/aegis.md` when using OpenCode with oh-my-openagent (`--omo`).
 
 Aegis is activated automatically (`mode: all`) on every task — it shadows the main agent and enforces security constraints proactively, rather than reactively. It operates with:
 
@@ -537,7 +537,7 @@ Aegis is activated automatically (`mode: all`) on every task — it shadows the 
 npx agent-security-policies --agent opencode --omo
 ```
 
-Aegis is installed once per project. It is non-destructive — if `.claude/agents/aegis.md` already exists, the installer skips it.
+Aegis is installed once per project. It is non-destructive — if `.opencode/agents/aegis.md` already exists, the installer skips it.
 
 ---
 

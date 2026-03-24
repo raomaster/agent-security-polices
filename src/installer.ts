@@ -395,15 +395,17 @@ function installCommands(targetDir: string, agentIds: string[]): void {
 }
 
 // ─── Step 3c: Aegis agent ────────────────────────────────────────────
+// OpenCode discovers agents from .opencode/agents/ (per-project)
+// or ~/.config/opencode/agents/ (global). NOT from .claude/agents/.
 function installAegisAgent(targetDir: string): void {
-    const agentsDir = path.join(targetDir, ".claude", "agents");
+    const agentsDir = path.join(targetDir, ".opencode", "agents");
     ensureDir(agentsDir);
     const aegisPath = path.join(agentsDir, "aegis.md");
     if (fs.existsSync(aegisPath)) {
-        warn(".claude/agents/aegis.md already exists — skipping");
+        warn(".opencode/agents/aegis.md already exists — skipping");
     } else {
         fs.writeFileSync(aegisPath, AEGIS_AGENT_CONTENT, "utf-8");
-        ok(".claude/agents/aegis.md — Aegis security agent installed");
+        ok(".opencode/agents/aegis.md — Aegis security agent installed");
     }
 }
 
@@ -432,7 +434,7 @@ function updateGitignore(targetDir: string, opts: InstallOptions): void {
         if (!agent) continue;
         entries.push(agent.configPath);
 
-        // Extra paths (e.g. .claude/agents/ for opencode)
+        // Extra paths (e.g. .opencode/agents/ for opencode)
         if (agent.extraPaths) {
             for (const p of agent.extraPaths) {
                 entries.push(p);
@@ -567,7 +569,7 @@ function printSummary(opts: InstallOptions): void {
         info(`Commands installed: ${COMMANDS_LIST.map((c) => c.id).join(", ")}`);
     }
     if (opts.omo && opts.agents.includes("opencode")) {
-        info("Aegis security agent installed (.claude/agents/aegis.md)");
+        info("Aegis security agent installed (.opencode/agents/aegis.md)");
     }
     if (opts.gitignore) {
         info("Installed files added to .gitignore");

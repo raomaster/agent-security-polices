@@ -335,13 +335,14 @@ $InstructionsBlock
             }
 
             # Install Aegis agent if -Omo
+            # OpenCode discovers agents from .opencode/agents/ (per-project)
             if ($Omo) {
-                $aegisDir = Join-Path $TargetDir ".claude\agents"
+                $aegisDir = Join-Path $TargetDir ".opencode\agents"
                 $aegisFile = Join-Path $aegisDir "aegis.md"
                 if (-not (Test-Path $aegisDir)) { New-Item -ItemType Directory -Path $aegisDir -Force | Out-Null }
 
                 if (Test-Path $aegisFile) {
-                    Write-Warn ".claude/agents/aegis.md already exists - skipping"
+                    Write-Warn ".opencode/agents/aegis.md already exists - skipping"
                 }
                 else {
                     $aegisContent = @"
@@ -385,7 +386,7 @@ Systematically find and fix security vulnerabilities in code, infrastructure, an
 Never force push. Never --no-verify. Never ``git add -A`` blindly. Never modify git config. Never commit .env. See Rule 12 in AGENT_RULES.md.
 "@
                     Set-Content -Path $aegisFile -Value $aegisContent
-                    Write-Ok ".claude/agents/aegis.md - Aegis security agent installed"
+                    Write-Ok ".opencode/agents/aegis.md - Aegis security agent installed"
                 }
             }
         }
@@ -612,7 +613,7 @@ if ($Gitignore) {
             "codex"       { $entries += "AGENTS.md" }
             "claude"      { $entries += "CLAUDE.md" }
             "antigravity" { $entries += ".agent/rules/security.md" }
-            "opencode"    { $entries += ".claude/rules/security.md"; $entries += ".claude/agents/" }
+            "opencode"    { $entries += ".claude/rules/security.md"; $entries += ".opencode/agents/" }
         }
     }
 
@@ -663,7 +664,7 @@ if ($Skills) {
     Write-Info "Skills installed: $($SkillsList -join ', ')"
     Write-Info "Commands installed: $($CommandsList -join ', ')"
 }
-if ($Omo) { Write-Info "Aegis security agent installed (.claude/agents/aegis.md)" }
+if ($Omo) { Write-Info "Aegis security agent installed (.opencode/agents/aegis.md)" }
 if ($Gitignore) { Write-Info "Installed files added to .gitignore" }
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor White
