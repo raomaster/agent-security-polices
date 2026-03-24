@@ -513,7 +513,6 @@ describe("install() — opencode with omo (Aegis discipline agent)", () => {
         );
         expect(content).toContain("name: Aegis");
         expect(content).toContain("mode: all");
-        expect(content).toContain("model: sonnet");
     });
 
     it("does NOT install Aegis when agent is not opencode", async () => {

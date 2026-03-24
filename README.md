@@ -1,7 +1,7 @@
 # agent-security-policies
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.5-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.6-green.svg)](CHANGELOG.md)
 [![OWASP ASVS](https://img.shields.io/badge/OWASP_ASVS-5.0.0-orange.svg)](policies/owasp_asvs.yaml)
 [![CWE Top 25](https://img.shields.io/badge/CWE_Top_25-2025-red.svg)](policies/cwe_top25.yaml)
 

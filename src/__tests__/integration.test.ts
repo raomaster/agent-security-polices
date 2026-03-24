@@ -36,7 +36,6 @@ describe("Aegis OmO discipline agent format", () => {
 
         expect(frontmatter).toContain("name:");
         expect(frontmatter).toContain("description:");
-        expect(frontmatter).toContain("model:");
         expect(frontmatter).toContain("mode:");
     });
 
@@ -44,8 +43,10 @@ describe("Aegis OmO discipline agent format", () => {
         expect(AEGIS_AGENT_CONTENT).toContain("mode: all");
     });
 
-    it("model is 'sonnet' (capable but not ultrabrain)", () => {
-        expect(AEGIS_AGENT_CONTENT).toContain("model: sonnet");
+    it("does not hardcode a model — inherits platform default", () => {
+        // model field omitted: OpenCode rejects Claude Code shorthands like "sonnet"
+        // Each platform uses its configured default model
+        expect(AEGIS_AGENT_CONTENT).not.toContain("model:");
     });
 
     it("installed to .opencode/agents/ — OpenCode per-project agent discovery path", () => {

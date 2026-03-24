@@ -101,7 +101,6 @@ describe("AEGIS_AGENT_CONTENT", () => {
         expect(AEGIS_AGENT_CONTENT).toMatch(/^---\n/);
         expect(AEGIS_AGENT_CONTENT).toContain("name: Aegis");
         expect(AEGIS_AGENT_CONTENT).toContain("description:");
-        expect(AEGIS_AGENT_CONTENT).toContain("model: sonnet");
         expect(AEGIS_AGENT_CONTENT).toContain("mode: all");
         // tools field intentionally omitted — OpenCode rejects YAML arrays for tools
         // both OpenCode and Claude Code inherit all tools by default

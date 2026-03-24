@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.6] — 2026-03-24
+
+### Fixed
+
+- Removed `model` field from Aegis agent frontmatter — OpenCode rejects Claude Code shorthands like `sonnet` (`Agent Aegis's configured model sonnet/ is not valid`). Both platforms now use their configured default model.
+
 ## [1.5.5] — 2026-03-24
 
 ### Fixed
