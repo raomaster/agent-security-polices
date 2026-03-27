@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-const ROOT = resolve(import.meta.dirname, '..', '..');
+const ROOT = resolve(import.meta.dirname, '..');
 
 // ─── Git Operations ─────────────────────────────────────────────────
 
