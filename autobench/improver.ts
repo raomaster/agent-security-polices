@@ -104,7 +104,7 @@ export function proposeImprovements(
 // ─── Apply an improvement to a SKILL.md file ────────────────────────
 
 export function applyImprovement(improvement: Improvement): boolean {
-  const filePath = resolve(import.meta.dirname, '..', '..', improvement.file);
+  const filePath = resolve(import.meta.dirname, '..', improvement.file);
 
   try {
     const content = readFileSync(filePath, 'utf-8');
