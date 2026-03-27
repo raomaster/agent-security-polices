@@ -218,29 +218,53 @@ export async function runSkillPipeline(skillName: string, options: BenchOptions)
   return agg;
 }
 
-// ─── Run benchmarks once and return metrics ─────────────────────────
+// ─── Run benchmarks once and return metrics + unmapped findings ─────
 
-async function runBenchmarkOnce(skillName: string, options: BenchOptions): Promise<{ metrics: Metrics[]; aggregate: AggregateMetrics }> {
+interface BenchmarkResult {
+  metrics: Metrics[];
+  aggregate: AggregateMetrics;
+  unmapped: { ruleId: string; cwe: string; caseId: string }[];
+  falsePositives: { caseId: string; cwe: string }[];
+  falseNegatives: { caseId: string; cwe: string }[];
+}
+
+async function runBenchmarkOnce(skillName: string, options: BenchOptions): Promise<BenchmarkResult> {
   const skill = parseSkillMd(skillName);
   const cweFilter = SKILL_TO_CWE[skillName] || [];
   const manifest = loadManifest();
   const allMetrics: Metrics[] = [];
+  const unmapped: { ruleId: string; cwe: string; caseId: string }[] = [];
+  const falsePositives: { caseId: string; cwe: string }[] = [];
+  const falseNegatives: { caseId: string; cwe: string }[] = [];
+  let caseCount = 0;
 
   for (const groupInfo of manifest.groups) {
     if (cweFilter.length > 0 && !cweFilter.includes(groupInfo.cwe)) continue;
     const group = loadGroup(groupInfo.dir.replace('benchmarks/', ''));
 
     for (const benchCase of group.cases) {
-      if (options.limit && allMetrics.length >= options.limit) break;
+      if (options.limit && caseCount >= options.limit) break;
       const caseDir = resolve(BENCH_DIR, groupInfo.dir.replace('benchmarks/', ''));
       const rawFindings = executeTool(skill, caseDir, benchCase.file);
       const mapped = applySkillMapping(rawFindings, skill);
       const metrics = evaluateCase(benchCase, mapped);
       allMetrics.push(metrics);
+      caseCount++;
+
+      // Collect unmapped findings
+      for (const f of mapped) {
+        if (!f.mapped && f.cwe !== 'UNKNOWN') {
+          unmapped.push({ ruleId: f.ruleId, cwe: f.cwe, caseId: benchCase.id });
+        }
+      }
+
+      // Collect FPs and FNs
+      if (metrics.fp > 0) falsePositives.push({ caseId: benchCase.id, cwe: metrics.cwe });
+      if (metrics.fn > 0) falseNegatives.push({ caseId: benchCase.id, cwe: metrics.cwe });
     }
   }
 
-  return { metrics: allMetrics, aggregate: aggregate(allMetrics) };
+  return { metrics: allMetrics, aggregate: aggregate(allMetrics), unmapped, falsePositives, falseNegatives };
 }
 
 // ─── Auto-Learning Loop (like autoresearch) ─────────────────────────
@@ -276,8 +300,12 @@ export async function runAutoLearningLoop(skillName: string, options: BenchOptio
   for (let i = 1; i <= iterations; i++) {
     console.log(`\n━━━ Iteration ${i}/${iterations} ━━━\n`);
 
-    // 1. Analyze current metrics → propose improvements
-    const improvements = proposeImprovements(baseline.metrics);
+    // 1. Analyze current metrics + unmapped findings → propose improvements
+    const improvements = proposeImprovements(baseline.metrics, {
+      unmapped: baseline.unmapped,
+      falsePositives: baseline.falsePositives,
+      falseNegatives: baseline.falseNegatives
+    });
 
     if (improvements.length === 0) {
       console.log('  🎉 No improvements to try. Loop complete.');

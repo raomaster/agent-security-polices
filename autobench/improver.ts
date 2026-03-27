@@ -14,8 +14,38 @@ export interface Improvement {
 
 // ─── Analyze metrics and propose improvements ───────────────────────
 
-export function proposeImprovements(metrics: Metrics[]): Improvement[] {
+export function proposeImprovements(
+  metrics: Metrics[],
+  context?: {
+    unmapped?: { ruleId: string; cwe: string; caseId: string }[];
+    falsePositives?: { caseId: string; cwe: string }[];
+    falseNegatives?: { caseId: string; cwe: string }[];
+  }
+): Improvement[] {
   const improvements: Improvement[] = [];
+
+  // 0. Unmapped findings → add mapping to sast-scan SKILL.md
+  //    This is the most common improvement: semgrep finds something
+  //    but the skill doesn't have it in its mapping table
+  if (context?.unmapped?.length) {
+    const seen = new Set<string>();
+    for (const u of context.unmapped) {
+      const key = u.cwe;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const pattern = extractPatternFromRuleId(u.ruleId);
+      if (pattern) {
+        improvements.push({
+          target: 'sast-scan',
+          file: 'skills/sast-scan/SKILL.md',
+          description: `Add mapping: ${pattern} → ${u.cwe} (from ${u.caseId})`,
+          change: `| \`${pattern}\` | ${u.cwe} | Rule 2: Injection Prevention |`,
+          anchor: '## Next Steps'
+        });
+      }
+    }
+  }
 
   // Group failures by type
   const fns = metrics.filter(m => m.fn > 0);
@@ -139,4 +169,16 @@ function getCweName(cwe: string): string {
     'CWE-862': 'Missing Authz'
   };
   return names[cwe] || cwe;
+}
+
+function extractPatternFromRuleId(ruleId: string): string | null {
+  if (!ruleId) return null;
+  // Convert semgrep rule ID to a glob pattern for the skill mapping table
+  // e.g., "javascript.express.security.injection.raw-html-format.raw-html-format"
+  //    → "*.raw-html-format.*"
+  const parts = ruleId.split('.');
+  if (parts.length < 2) return null;
+  // Use the last significant segment
+  const lastPart = parts[parts.length - 1];
+  return `*.${lastPart}.*`;
 }
