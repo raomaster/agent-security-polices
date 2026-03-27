@@ -185,6 +185,7 @@ export function formatAggregateReport(agg: AggregateMetrics): string {
   ];
 
   for (const [cwe, stats] of agg.byCwe) {
+    if (!cwe || !stats) continue;
     lines.push(`║  ${pad(cwe, 22)} │ ${pad(String(stats.count), 4)} cases │ P:${pad(String(stats.precision), 5)} R:${pad(String(stats.recall), 5)} ║`);
   }
 

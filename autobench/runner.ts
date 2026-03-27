@@ -104,6 +104,7 @@ export async function runSkillPipeline(skillName: string, options: BenchOptions)
   const manifest = loadManifest();
   const allMetrics: Metrics[] = [];
   const allFixes: FixResult[] = [];
+  let caseCount = 0;
   initResultsTsv();
 
   for (const groupInfo of manifest.groups) {
@@ -113,7 +114,7 @@ export async function runSkillPipeline(skillName: string, options: BenchOptions)
     console.log(`\n  ━━ ${group.cwe}: ${group.name} (${group.cases.length} cases) ━━`);
 
     for (const benchCase of group.cases) {
-      if (options.limit && allMetrics.length >= options.limit) break;
+      if (options.limit && caseCount >= options.limit) break;
 
       const caseDir = resolve(BENCH_DIR, groupInfo.dir.replace('benchmarks/', ''));
 
@@ -141,6 +142,7 @@ export async function runSkillPipeline(skillName: string, options: BenchOptions)
       const metrics = evaluateCase(benchCase, mapped);
       metrics.durationMs = duration;
       allMetrics.push(metrics);
+      caseCount++;
       logMetrics(Date.now(), metrics, 'baseline', '');
 
       // Display result
