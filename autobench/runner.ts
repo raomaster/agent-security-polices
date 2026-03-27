@@ -7,7 +7,7 @@ import { generateFix, mapToRule, triageBySeverity, type FixResult } from './fixe
 import { aggregate, compareScores, formatAggregateReport } from './evaluator.js';
 import { initResultsTsv, logMetrics, logAggregate } from './results.js';
 import { getCommitHash, getShortHash, commitChange, revertTo, isClean } from './git.js';
-import { proposeImprovements, applyImprovement, type Improvement } from './improver.js';
+import { proposeImprovements, applyImprovement, resetTriedChanges, type Improvement } from './improver.js';
 
 const BENCH_DIR = resolve(import.meta.dirname, '..', 'benchmarks');
 
@@ -223,7 +223,7 @@ export async function runSkillPipeline(skillName: string, options: BenchOptions)
 interface BenchmarkResult {
   metrics: Metrics[];
   aggregate: AggregateMetrics;
-  unmapped: { ruleId: string; cwe: string; caseId: string }[];
+  unmapped: { ruleId: string; cwe: string; caseId: string; expectedCwe?: string }[];
   falsePositives: { caseId: string; cwe: string }[];
   falseNegatives: { caseId: string; cwe: string }[];
 }
@@ -233,7 +233,7 @@ async function runBenchmarkOnce(skillName: string, options: BenchOptions): Promi
   const cweFilter = SKILL_TO_CWE[skillName] || [];
   const manifest = loadManifest();
   const allMetrics: Metrics[] = [];
-  const unmapped: { ruleId: string; cwe: string; caseId: string }[] = [];
+  const unmapped: { ruleId: string; cwe: string; caseId: string; expectedCwe?: string }[] = [];
   const falsePositives: { caseId: string; cwe: string }[] = [];
   const falseNegatives: { caseId: string; cwe: string }[] = [];
   let caseCount = 0;
@@ -251,10 +251,10 @@ async function runBenchmarkOnce(skillName: string, options: BenchOptions): Promi
       allMetrics.push(metrics);
       caseCount++;
 
-      // Collect unmapped findings
+      // Collect unmapped findings (with expected CWE for prioritization)
       for (const f of mapped) {
         if (!f.mapped && f.cwe !== 'UNKNOWN') {
-          unmapped.push({ ruleId: f.ruleId, cwe: f.cwe, caseId: benchCase.id });
+          unmapped.push({ ruleId: f.ruleId, cwe: f.cwe, caseId: benchCase.id, expectedCwe: benchCase.cwe });
         }
       }
 
@@ -278,6 +278,7 @@ export async function runAutoLearningLoop(skillName: string, options: BenchOptio
   console.log(`${'═'.repeat(60)}\n`);
 
   initResultsTsv();
+  resetTriedChanges(); // Clear previous improvement attempts
 
   // Ensure clean working tree
   if (!isClean()) {
