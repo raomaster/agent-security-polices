@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ScanFinding } from './types.js';
 
 // ─── Skill Definition (parsed from SKILL.md) ───────────────────────
 
@@ -23,7 +22,15 @@ export interface SkillDef {
 
 export function parseSkillMd(skillName: string): SkillDef {
   const skillPath = resolve(import.meta.dirname, '..', 'skills', skillName, 'SKILL.md');
-  const content = readFileSync(skillPath, 'utf-8');
+  let content: string;
+  try {
+    content = readFileSync(skillPath, 'utf-8');
+  } catch (err: any) {
+    if (err.code === 'ENOENT') {
+      throw new Error(`Skill file not found: ${skillPath}\nAvailable skills are directories under skills/`);
+    }
+    throw err;
+  }
 
   return {
     name: skillName,
@@ -49,7 +56,9 @@ function parseMappingTable(content: string): SkillMapping[] {
   let match;
   while ((match = rowRegex.exec(content)) !== null) {
     const pattern = match[1];
-    const cwe = match[2].padStart(7, '0');
+    const rawCwe = match[2];
+    const num = rawCwe.match(/(\d+)/);
+    const cwe = num ? `CWE-${num[1].padStart(3, '0')}` : rawCwe;
     mappings.push({
       pattern,
       cwe,

@@ -45,6 +45,33 @@
       "vulnerable": false,
       "findings": [],
       "note": "Uses django.utils.html.escape - must NOT trigger"
+    },
+    {
+      "id": "xss-006",
+      "file": "flask-xss.py",
+      "language": "python",
+      "vulnerable": true,
+      "findings": [
+        { "line": 9, "cwe": "CWE-079", "severity": "HIGH", "description": "Unescaped user input from request.args embedded directly in HTML response via make_response" }
+      ]
+    },
+    {
+      "id": "xss-007",
+      "file": "safe-flask-escape.py",
+      "language": "python",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Uses markupsafe.escape() on all user input before embedding in HTML - must NOT trigger"
+    },
+    {
+      "id": "xss-008",
+      "file": "dom-xss.js",
+      "language": "javascript",
+      "vulnerable": true,
+      "findings": [
+        { "line": 4, "cwe": "CWE-079", "severity": "HIGH", "description": "DOM-based XSS: location.hash written directly to innerHTML without sanitization" },
+        { "line": 11, "cwe": "CWE-079", "severity": "HIGH", "description": "DOM-based XSS: URL query parameter written directly to innerHTML without sanitization" }
+      ]
     }
   ]
 }

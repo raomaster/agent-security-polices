@@ -29,6 +29,41 @@
       "vulnerable": false,
       "findings": [],
       "note": "Redacts sensitive fields before logging - must NOT trigger"
+    },
+    {
+      "id": "log-004",
+      "file": "django-log-password.py",
+      "language": "python",
+      "vulnerable": true,
+      "findings": [
+        { "line": 13, "cwe": "CWE-532", "severity": "HIGH", "description": "Password logged in plaintext via logger.info" },
+        { "line": 26, "cwe": "CWE-532", "severity": "HIGH", "description": "New password logged in plaintext via logger.debug" }
+      ]
+    },
+    {
+      "id": "log-005",
+      "file": "express-log-token.js",
+      "language": "javascript",
+      "vulnerable": true,
+      "findings": [
+        { "line": 9, "cwe": "CWE-532", "severity": "HIGH", "description": "Full Authorization Bearer token logged via console.log" }
+      ]
+    },
+    {
+      "id": "log-006",
+      "file": "safe-log-masked.py",
+      "language": "python",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Masks password with **** before logging - must NOT trigger"
+    },
+    {
+      "id": "log-007",
+      "file": "safe-log-no-secrets.js",
+      "language": "javascript",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Logs only method, path, IP, status code, and duration - must NOT trigger"
     }
   ]
 }

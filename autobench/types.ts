@@ -82,6 +82,10 @@ export interface AggregateMetrics {
   f1: number;
   byCwe: Map<string, { precision: number; recall: number; f1: number; count: number }>;
   byTool: Map<string, { precision: number; recall: number; f1: number; count: number }>;
+  /** Recall on CRITICAL+HIGH benchmark cases only. Populated by runner.ts after runBenchmarkOnce. */
+  recallCritical?: number;
+  /** FP rate on vulnerable:false fixture cases. Populated by runner.ts after runBenchmarkOnce. */
+  fpRateSafe?: number;
 }
 
 export interface RunResult {
@@ -140,11 +144,149 @@ export interface BenchOptions {
   tool?: string[];
   limit?: number;
   fix?: boolean;
-  provider?: 'openai' | 'anthropic';
+  provider?: string;
+  model?: string;
+  dryRun?: boolean;
   loop?: boolean;
   iterations?: number;
   dashboard?: boolean;
   verbose?: boolean;
+}
+
+// ─── Normalized Finding (canonical form, all adapters output this) ──
+
+export interface NormalizedFinding {
+  id: string;              // sha-256 of (tool + file + line + ruleId), hex, first 16 chars
+  source: 'autobench' | 'ci' | 'manual';
+  tool: 'semgrep' | 'gitleaks' | 'kics' | 'trivy';
+  file: string;            // relative path, forward slashes
+  line: number;
+  cwe: string;             // always "CWE-NNN", e.g. "CWE-079"
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  confidence: number;      // 0–100
+  ruleId: string;
+  ruleMapping: string | null;  // matched SKILL.md pattern, null if unmapped
+  message: string;
+  fixable: boolean;
+  status: 'raw' | 'mapped' | 'triaged' | 'fixed' | 'verified';
+}
+
+// ─── Proposal types ──────────────────────────────────────────────────
+
+export type ProposalType =
+  | 'add_mapping'      // add a new row to the SKILL.md CWE table
+  | 'remove_mapping'   // delete an overly broad or incorrect row
+  | 'modify_mapping'   // update an existing pattern
+  | 'add_exclusion'    // suppress FPs matching a pattern
+  | 'change_severity'  // adjust the severity for a CWE
+  | 'add_fix_rule';    // add a CWE → AGENT_RULES rule mapping
+
+export interface Proposal {
+  type: ProposalType;
+  hypothesis: string;      // why this change should improve F1
+  file: string;            // path relative to repo root
+  find: string;            // exact verbatim string to locate in file
+  replace: string;         // exact replacement (must differ from find)
+  targetCwes: string[];    // e.g. ["CWE-330"]
+  expectedEffect: 'increase_recall' | 'increase_precision' | 'both';
+  confidence: number;      // 0.0–1.0; return 0 to signal "no more proposals"
+  generator: 'llm' | 'rules';
+}
+
+// ─── Promotion ───────────────────────────────────────────────────────
+
+export interface ProtectedMetrics {
+  recallCritical: number;  // recall on CRITICAL+HIGH benchmark cases only
+  fpRateSafe: number;      // FP rate on vulnerable:false fixture cases
+}
+
+export interface PromotionGuard {
+  name: string;
+  passed: boolean;
+  before: number;
+  after: number;
+  threshold?: number;
+}
+
+export interface PromotionDecision {
+  outcome: 'promote' | 'reject' | 'failed_to_apply';
+  guards: PromotionGuard[];
+  f1Delta: number;
+  reasons: string[];       // machine-readable, e.g. "delta_f1_below_threshold"
+}
+
+// ─── Aggregate Metrics Summary ───────────────────────────────────────
+
+export interface AggregateMetricsSummary {
+  f1: number;
+  precision: number;
+  recall: number;
+  recallCritical: number;
+  fpRateSafe: number;
+  totalCases: number;
+  totalTp: number;
+  totalFp: number;
+  totalFn: number;
+}
+
+// ─── Experiment Record ───────────────────────────────────────────────
+
+export interface ExperimentRecord {
+  experimentId: string;    // UUID v4
+  parentBaselineId: string; // git commit hash
+  iteration: number;
+  timestamp: string;       // ISO 8601
+  skillName: string;
+  proposal: Proposal;
+  beforeMetrics: AggregateMetricsSummary;
+  afterMetrics: AggregateMetricsSummary;
+  decision: PromotionDecision;
+  durationMs: number;
+  llmTokensUsed: number;   // 0 for rule-based generator
+  artifactPaths: {
+    patch: string;
+    beforeFindings: string;
+    afterFindings: string;
+    llmPrompt?: string;
+    llmResponse?: string;
+  };
+}
+
+// ─── LLM types ───────────────────────────────────────────────────────
+
+export type LlmProvider = 'anthropic' | 'openai';
+
+export interface AgentConfig {
+  provider: LlmProvider;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+}
+
+export interface LlmMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface LlmResponse {
+  content: string;
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+}
+
+// ─── Anti-cycling ────────────────────────────────────────────────────
+
+export interface TriedChange {
+  iteration: number;
+  timestamp: string;
+  hypothesis: string;
+  file: string;
+  find: string;
+  replace: string;
+  outcome: 'promote' | 'reject' | 'failed_to_apply';
+  f1Delta: number;
+  generator: 'llm' | 'rules';
 }
 
 // ─── Dashboard Data ─────────────────────────────────────────────────

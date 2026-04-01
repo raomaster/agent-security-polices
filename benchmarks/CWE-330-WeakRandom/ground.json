@@ -28,6 +28,42 @@
       "vulnerable": false,
       "findings": [],
       "note": "Uses crypto.randomBytes - must NOT trigger"
+    },
+    {
+      "id": "random-004",
+      "file": "session-token.py",
+      "language": "python",
+      "vulnerable": true,
+      "findings": [
+        { "line": 23, "cwe": "CWE-330", "severity": "HIGH", "description": "random.randint used to generate session token" },
+        { "line": 31, "cwe": "CWE-330", "severity": "HIGH", "description": "random.choices used to generate password reset code" }
+      ]
+    },
+    {
+      "id": "random-005",
+      "file": "uuid-weak.js",
+      "language": "javascript",
+      "vulnerable": true,
+      "findings": [
+        { "line": 8, "cwe": "CWE-330", "severity": "HIGH", "description": "Math.random() used to generate UUID for session identification" },
+        { "line": 17, "cwe": "CWE-330", "severity": "HIGH", "description": "Math.random() used to generate API key material" }
+      ]
+    },
+    {
+      "id": "random-006",
+      "file": "safe-secrets.py",
+      "language": "python",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Uses secrets.token_hex and secrets.choice for all random values - must NOT trigger"
+    },
+    {
+      "id": "random-007",
+      "file": "safe-crypto-random.js",
+      "language": "javascript",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Uses crypto.randomUUID, crypto.randomBytes, and crypto.randomInt - must NOT trigger"
     }
   ]
 }

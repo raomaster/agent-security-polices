@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { resolve, relative } from 'node:path';
 import type { ScanFinding } from './types.js';
 import type { SkillDef } from './skill.js';
 
@@ -20,6 +20,7 @@ export function executeTool(
     case 'gitleaks':
       return runGitleaks(caseDir, file, filePath);
     default:
+      console.warn(`  ⚠ Adapter "${skill.tool}" is not yet implemented. Returning no findings.`);
       return [];
   }
 }
@@ -45,7 +46,7 @@ function runSemgrep(caseDir: string, file: string, filePath: string): ScanFindin
     const report = JSON.parse(stdout);
     return (report.results || []).map((r: any) => ({
       tool: 'semgrep' as const,
-      file: r.path?.replace(caseDir + '/', '') || file,
+      file: r.path ? relative(caseDir, r.path) : file,
       line: r.start?.line || 0,
       column: r.start?.col,
       endLine: r.end?.line,
@@ -55,7 +56,13 @@ function runSemgrep(caseDir: string, file: string, filePath: string): ScanFindin
       ruleId: r.check_id || '',
       confidence: r.extra?.metadata?.confidence === 'HIGH' ? 90 : 50
     }));
-  } catch {
+  } catch (err: any) {
+    // ENOENT means the tool is not installed — propagate so the caller knows results are unreliable
+    if (err.code === 'ENOENT') {
+      throw new Error(`semgrep not found. Install it or ensure Docker is available. (${err.message})`);
+    }
+    // Any other error (parse failure, timeout, exit code) → no findings for this case
+    console.warn(`  ⚠ semgrep returned no findings for ${file}: ${err.message?.split('\n')[0] ?? err}`);
     return [];
   }
 }
@@ -76,7 +83,6 @@ function runGitleaks(caseDir: string, file: string, filePath: string): ScanFindi
     execFileSync(cmd, args, { timeout: 30_000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
 
     if (!useDocker && existsSync(reportPath)) {
-      const { readFileSync, unlinkSync } = require('node:fs');
       const report = JSON.parse(readFileSync(reportPath, 'utf-8'));
       unlinkSync(reportPath);
       return report
@@ -92,7 +98,13 @@ function runGitleaks(caseDir: string, file: string, filePath: string): ScanFindi
         }));
     }
     return [];
-  } catch {
+  } catch (err: any) {
+    // ENOENT means the tool is not installed — propagate so the caller knows results are unreliable
+    if (err.code === 'ENOENT') {
+      throw new Error(`gitleaks not found. Install it or ensure Docker is available. (${err.message})`);
+    }
+    // Any other error (timeout, exit code, parse failure) → no findings for this case
+    console.warn(`  ⚠ gitleaks returned no findings for ${file}: ${err.message?.split('\n')[0] ?? err}`);
     return [];
   }
 }

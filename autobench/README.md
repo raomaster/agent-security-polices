@@ -43,8 +43,12 @@ npx tsx run.ts --dashboard
 | `npx tsx run.ts --limit 5` | Test only 5 cases (quick validation) |
 | `npx tsx run.ts --verbose` | Show unmapped rules and gaps |
 | `npx tsx run.ts --fix` | Show fix proposals from fix-findings |
-| `npx tsx run.ts --loop` | Auto-learning loop (100 iter default) |
+| `npx tsx run.ts --loop` | Auto-learning loop — rule-based proposer (no API key needed) |
 | `npx tsx run.ts --loop --iterations 50` | Custom iteration count |
+| `ANTHROPIC_API_KEY=... npx tsx run.ts --loop` | Loop with LLM proposer (Anthropic) |
+| `OPENAI_API_KEY=... npx tsx run.ts --loop` | Loop with LLM proposer (OpenAI) |
+| `npx tsx run.ts --loop --provider anthropic --model claude-opus-4-20250514` | Override provider and model |
+| `npx tsx run.ts --loop --dry-run` | Print LLM prompt without calling API or modifying files |
 | `npx tsx run.ts --dashboard` | Generate HTML dashboard from results |
 
 ### Prerequisites
@@ -132,6 +136,99 @@ Iteration N+1:
   6. F1 decreased (-0.014) → ❌ REVERT (git reset --hard HEAD~1)
 ```
 
+### Proposer: LLM mode vs Rule-based fallback
+
+The loop uses two proposal generators depending on whether an API key is configured:
+
+| Mode | When active | How it proposes |
+|------|-------------|-----------------|
+| **LLM proposer** | `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is set | Calls the model with full context (metrics, unmapped findings, tried history). Generates unbounded, context-aware hypotheses. |
+| **Rule-based fallback** | No API key | Static lookup: maps unmapped ruleIds and FN CWEs to known Semgrep patterns. Limited to ~11 CWE entries, exhausts in one session. |
+
+In both modes, the evaluation is always deterministic: the LLM (or rules engine) proposes, the benchmark evaluator decides. The LLM never determines whether a change is kept.
+
+### Promotion guards
+
+A change is kept only if ALL of these pass:
+
+| Guard | Condition |
+|-------|-----------|
+| `delta_f1` | `after.f1 - before.f1 > 0.001` |
+| `critical_recall` | Recall on HIGH+CRITICAL cases must not regress |
+| `safe_fp_rate` | FP rate on `vulnerable:false` fixtures must not increase |
+| `schema_valid` | SKILL.md remains parseable after change |
+| `no_crash` | Scan adapter must not crash |
+
+### Monitoring a running loop
+
+```bash
+# Watch experiment decisions in real time
+tail -f results/decisions.jsonl | while IFS= read -r line; do
+  echo "$line" | python3 -m json.tool | grep -E 'outcome|f1Delta|hypothesis'
+done
+
+# Quick summary of all tried changes
+cat results/tried_changes.jsonl | jq -r '[.outcome, .f1Delta, .hypothesis] | @tsv'
+
+# Count keeps vs reverts
+cat results/tried_changes.jsonl | jq -s 'group_by(.outcome) | map({outcome: .[0].outcome, count: length})'
+
+# Check which branch the loop is running on
+git branch --list 'autobench/run-*'
+```
+
+---
+
+## Git workflow
+
+The project follows a standard Git Flow:
+
+```
+main          ← stable releases only
+develop       ← integration branch
+feature/*     ← active development (e.g. feature/autobench)
+autobench/run-* ← experiment branches created by the loop
+```
+
+### How the loop uses branches
+
+When you run `--loop`, the runner automatically creates an experiment branch from wherever you are:
+
+```
+feature/autobench
+│
+└── autobench/run-2026-03-28T11-00-00   ← created at loop start
+    ├── [autobench] iter 1: add *.random.insecure* → CWE-330   ← KEPT
+    ├── [autobench] iter 3: add *.xss.* → CWE-079              ← KEPT
+    │   (iter 2 was reverted — git reset --hard, commit erased)
+    └── ...
+```
+
+Each kept improvement is a real commit. Each reverted change is erased from history with `git reset --hard`. You end the session on the experiment branch with only the validated improvements in the log.
+
+### After a loop session
+
+```bash
+# 1. Review what the loop kept
+git log autobench/run-2026-03-28T11-00-00 --oneline
+
+# 2. Review which skill files changed
+git diff feature/autobench...autobench/run-2026-03-28T11-00-00 -- skills/
+
+# 3. If the improvements look good — merge into your feature branch
+git checkout feature/autobench
+git merge autobench/run-2026-03-28T11-00-00
+
+# 4. Clean up the experiment branch
+git branch -d autobench/run-2026-03-28T11-00-00
+
+# 5. When ready to integrate with the team
+git checkout develop
+git merge feature/autobench
+```
+
+The loop never touches `develop` or `main` directly. All experiments are isolated to `autobench/run-*` branches until you explicitly merge them.
+
 ---
 
 ## What Gets Improved
@@ -183,23 +280,25 @@ Safe samples (`"vulnerable": false`) test false-positive resistance.
 
 ## Benchmark Coverage
 
-| CWE | Category | JS | Python | Java | IaC |
-|-----|----------|-----|--------|------|-----|
-| CWE-079 | Cross-Site Scripting | ✅ | ✅ | — | — |
-| CWE-089 | SQL Injection | ✅ | ✅ | — | — |
-| CWE-078 | OS Command Injection | ✅ | ✅ | — | — |
-| CWE-798 | Hardcoded Secrets | ✅ | ✅ | — | — |
-| CWE-532 | Sensitive Data in Logs | ✅ | ✅ | — | — |
-| CWE-327 | Weak Cryptography | ✅ | ✅ | — | — |
-| CWE-330 | Insufficient Randomness | ✅ | ✅ | — | — |
-| CWE-022 | Path Traversal | ✅ | ✅ | — | — |
-| CWE-502 | Insecure Deserialization | — | ✅ | — | — |
-| CWE-287 | Authentication Bypass | ✅ | — | — | — |
-| CWE-862 | Missing Authorization | ✅ | — | — | — |
-| IaC | Terraform Misconfigs | — | — | — | ✅ |
-| IaC | Kubernetes Misconfigs | — | — | — | ✅ |
+| CWE | Category | Cases | JS | Python | IaC |
+|-----|----------|-------|----|--------|-----|
+| CWE-079 | Cross-Site Scripting | 8 | ✅ | ✅ | — |
+| CWE-089 | SQL Injection | 8 | ✅ | ✅ | — |
+| CWE-078 | OS Command Injection | 7 | ✅ | ✅ | — |
+| CWE-798 | Hardcoded Secrets | 8 | ✅ | ✅ | — |
+| CWE-532 | Sensitive Data in Logs | 7 | ✅ | ✅ | — |
+| CWE-327 | Weak Cryptography | 7 | ✅ | ✅ | — |
+| CWE-330 | Insufficient Randomness | 7 | ✅ | ✅ | — |
+| CWE-022 | Path Traversal | 8 | ✅ | ✅ | — |
+| CWE-502 | Insecure Deserialization | 8 | ✅ | ✅ | — |
+| CWE-287 | Authentication Bypass | 8 | ✅ | ✅ | — |
+| CWE-862 | Missing Authorization | 8 | ✅ | ✅ | — |
+| IaC | Terraform Misconfigs | 4 | — | — | ✅ |
+| IaC | Kubernetes Misconfigs | 3 | — | — | ✅ |
 
-**Total: 33 benchmark cases across 13 CWE categories.**
+**Total: 87 benchmark cases across 13 CWE categories.**
+
+Each CWE group contains a mix of vulnerable fixtures (positive examples) and safe fixtures (negative examples that must not trigger).
 
 ---
 
@@ -303,53 +402,89 @@ Each layer is tested independently:
 
 ```
 autobench/
-├── run.ts            CLI entry point
-├── runner.ts         Pipeline orchestrator + auto-learning loop
-├── skill.ts          SKILL.md parser (CWE mapping, severity, exclusions)
-├── executor.ts       Tool execution (semgrep, gitleaks)
-├── fixer.ts          fix-findings SKILL integration (CWE→Rule, fix generation)
-├── evaluator.ts      TP/FP/FN → precision/recall/F1
-├── improver.ts       Gap analysis → SKILL.md improvement proposals
-├── git.ts            Git operations (commit, revert)
-├── results.ts        TSV logging
-├── dashboard.ts      HTML dashboard generation
-├── types.ts          TypeScript interfaces
-├── program.md        Instructions for autonomous agent
-└── __tests__/
-    └── evaluator.test.ts
+├── run.ts                    CLI entry point (--loop, --skill, --dry-run, --provider)
+├── runner.ts                 Pipeline orchestrator + auto-learning loop
+├── skill.ts                  SKILL.md parser (CWE mapping, severity, exclusions)
+├── executor.ts               Tool execution (semgrep, gitleaks)
+├── evaluator.ts              TP/FP/FN → precision/recall/F1
+├── git.ts                    Git operations (commit, revert, branch isolation)
+├── types.ts                  TypeScript interfaces
+│
+├── agent/                    LLM agent subsystem
+│   ├── proposer.ts           LLM proposer — calls Claude/OpenAI for change hypotheses
+│   ├── proposer-rules.ts     Rule-based fallback proposer (no API key needed)
+│   ├── prompts.ts            System + user prompt builders
+│   └── validator.ts          Proposal validation (5 guards before any file is touched)
+│
+├── orchestration/            Loop control
+│   └── promotion.ts          Promotion policy (F1 delta + 4 safety guards)
+│
+├── normalization/            Data normalization
+│   └── cwe.ts                CWE format normalization (CWE-79 → CWE-079)
+│
+├── artifacts/                Persistence
+│   └── decisions.ts          tried_changes.jsonl + decisions.jsonl I/O
+│
+└── __tests__/                Test suite (68 tests)
+    ├── decisions.test.ts
+    ├── llm-client.test.ts
+    ├── promotion.test.ts
+    ├── prompts.test.ts
+    ├── proposer.test.ts
+    └── validator.test.ts
 
 benchmarks/
-├── manifest.json     Index of all benchmark cases
-├── CWE-079-XSS/      5 cases (vulnerable + safe)
-├── CWE-089-SQLi/     5 cases
-├── CWE-078-CmdInjection/
-├── CWE-798-HardcodedSecrets/
-├── CWE-532-LogSecrets/
-├── CWE-327-WeakCrypto/
-├── CWE-330-WeakRandom/
-├── CWE-022-PathTraversal/
-├── CWE-502-Deserialization/
-├── CWE-287-AuthBypass/
-├── CWE-862-MissingAuthz/
-├── IaC-Terraform/
-└── IaC-Kubernetes/
+├── manifest.json             Index of all benchmark cases (87 total)
+├── CWE-079-XSS/              8 cases (5v/3s) — JS, Python
+├── CWE-089-SQLi/             8 cases (5v/3s) — JS, Python
+├── CWE-078-CmdInjection/     7 cases (4v/3s) — JS, Python
+├── CWE-798-HardcodedSecrets/ 8 cases (5v/3s) — JS, Python
+├── CWE-532-LogSecrets/       7 cases (4v/3s) — JS, Python
+├── CWE-327-WeakCrypto/       7 cases (4v/3s) — JS, Python
+├── CWE-330-WeakRandom/       7 cases (4v/3s) — JS, Python
+├── CWE-022-PathTraversal/    8 cases (5v/3s) — JS, Python
+├── CWE-502-Deserialization/  8 cases (5v/3s) — JS, Python
+├── CWE-287-AuthBypass/       8 cases (5v/3s) — JS, Python
+├── CWE-862-MissingAuthz/     8 cases (5v/3s) — JS, Python
+├── IaC-Terraform/            4 cases — HCL
+└── IaC-Kubernetes/           3 cases — YAML
 ```
 
----
+### Adding benchmark cases
 
-## Relationship to autoresearch
+Each CWE directory has a `ground.json` with the ground truth and the code files alongside it:
 
-| Aspect | autoresearch (Karpathy) | AutoBench |
-|--------|------------------------|-----------|
-| **Target** | `train.py` (GPT model) | `skills/*/SKILL.md` (instructions) |
-| **Metric** | `val_bpb` (bits per byte) | `F1` (precision × recall) |
-| **Tool** | PyTorch + Muon optimizer | Semgrep + Gitleaks + KICS |
-| **Loop** | Modify code → train 5min → eval | Edit SKILL.md → scan → evaluate |
-| **Keep/Discard** | Git commit or revert | Git commit or revert |
-| **Runtime** | ~100 experiments/night | ~100 iterations/night |
-| **Budget** | GPU hours | CPU minutes |
+```json
+{
+  "cwe": "CWE-089",
+  "name": "SQL Injection",
+  "category": "Injection",
+  "cases": [
+    {
+      "id": "sqli-009",
+      "file": "new-vuln.py",
+      "language": "python",
+      "vulnerable": true,
+      "findings": [
+        { "line": 12, "cwe": "CWE-089", "severity": "CRITICAL", "description": "..." }
+      ]
+    },
+    {
+      "id": "sqli-010",
+      "file": "new-safe.py",
+      "language": "python",
+      "vulnerable": false,
+      "findings": [],
+      "note": "Uses parameterized queries — must NOT trigger"
+    }
+  ]
+}
+```
 
-Both follow the same meta-optimization pattern: **let the system improve itself by iterating on measurable outcomes**.
+Rules:
+- `line` must exactly match the vulnerable line in the code file
+- Safe cases must have `"vulnerable": false` and `"findings": []`
+- After adding, update `benchmarks/manifest.json` with the new `caseCount` and `totalCases`
 
 ---
 
@@ -361,9 +496,70 @@ Both follow the same meta-optimization pattern: **let the system improve itself 
 
 3. **Every improvement must be measurable.** F1 delta is the arbiter of keep vs revert.
 
-4. **Simplicity over complexity.** A small improvement that adds ugly complexity is not worth it.
+4. **LLM proposes, evaluator decides.** The LLM generates hypotheses. Local code scores them. The LLM never decides whether a change is kept.
 
-5. **Removing things that work equally well is a win.** Less surface area = fewer bugs.
+5. **Removing something that works equally well is a win.** Less surface area = fewer bugs.
+
+---
+
+## Influences and Prior Art
+
+AutoBench applies the same meta-optimization pattern used across several systems to a new domain: security skill configuration.
+
+### autoresearch — Andrej Karpathy (2026)
+
+The direct inspiration. autoresearch runs an LLM agent on a single GPU to improve LLM training code overnight. Three formal primitives: editable asset (`train.py`), scalar metric (`val_bpb`), time-boxed cycle (5 minutes per experiment). 700 experiments in 2 days, 20 validated optimizations.
+
+→ [github.com/karpathy/autoresearch](https://github.com/karpathy/autoresearch)
+
+AutoBench applies the same pattern to security skills instead of training code:
+
+| Aspect | autoresearch | AutoBench |
+|--------|-------------|-----------|
+| Editable asset | `train.py` | `skills/*/SKILL.md` + policies |
+| Metric | `val_bpb` (bits per byte) | F1 (precision × recall) |
+| Tool | PyTorch + GPU | Semgrep + Gitleaks + KICS |
+| Cycle | 5-minute training run | ~30-60s benchmark suite |
+| Budget | GPU hours | CPU minutes |
+| Hypothesis generator | LLM agent | LLM agent |
+
+### FunSearch — DeepMind (Nature, 2024)
+
+An evolutionary procedure that pairs an LLM with a systematic evaluator to discover novel mathematical functions. The key principle: **the LLM proposes programs, the evaluator scores them, the evolutionary process promotes the best.** The LLM never judges quality — only the evaluator does. FunSearch discovered new solutions for the cap set problem.
+
+→ [deepmind.google/blog/funsearch](https://deepmind.google/blog/funsearch-making-new-discoveries-in-mathematical-sciences-using-large-language-models/)
+
+AutoBench adopts this separation directly: the LLM generates change hypotheses, the benchmark suite scores them, the promotion policy decides.
+
+### AI Scientist — Sakana AI (Nature, 2025)
+
+A fully automated scientific discovery system that generates hypotheses, runs experiments, and writes papers. First fully AI-generated paper to pass peer review. Independent evaluations found 42% experiment failure rates — highlighting that robust evaluation infrastructure is as important as the hypothesis generator.
+
+→ [sakana.ai/ai-scientist](https://sakana.ai/ai-scientist-nature/)
+
+AutoBench's strict validation pipeline (5 checks before any proposal is applied) addresses this class of reliability concern.
+
+### SAST-Genius (2025)
+
+A hybrid framework combining LLMs with Semgrep that reduced false positives by 91% (225 → 20) through LLM-powered triage and contextual validation. Uses LLMs at **inference time** to filter and contextualize raw scanner output.
+
+→ [arxiv.org/abs/2509.15433](https://arxiv.org/abs/2509.15433)
+
+AutoBench is complementary but different: it uses LLMs to **permanently improve the skill configuration** that governs scanner interpretation, not to triage individual findings at runtime.
+
+### RE-Bench — METR (2024)
+
+A benchmark for evaluating AI R&D capabilities on ML research engineering tasks. Frontier agents achieved 4× human expert scores at 2-hour budgets, establishing that LLM agents can perform meaningful research engineering. Methodology for measuring agent performance on open-ended optimization tasks directly informs AutoBench's evaluation design.
+
+→ [metr.org/blog/re-bench](https://metr.org/blog/2024-11-22-evaluating-r-d-capabilities-of-llms/)
+
+### GenProg and Automated Program Repair
+
+A line of research using evolutionary search with test-suite fitness functions to repair programs automatically. Key lesson: simplistic fitness functions (pass/fail only) are insufficient — finer-grained metrics incorporating output distance and formal specifications produce better results.
+
+→ [GECCO 2018](https://dl.acm.org/doi/10.1145/3205455.3205566)
+
+AutoBench's multi-criteria promotion policy (F1 + protected guards) applies this lesson to skill optimization.
 
 ---
 

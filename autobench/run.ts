@@ -18,6 +18,9 @@ function parseArgs(args: string[]): { skill: string; options: BenchOptions } {
       case '--loop': options.loop = true; break;
       case '--iterations': options.iterations = parseInt(args[++i], 10); break;
       case '--dashboard': options.dashboard = true; break;
+      case '--provider': options.provider = args[++i]; break;
+      case '--model':    options.model    = args[++i]; break;
+      case '--dry-run':  options.dryRun   = true;      break;
       case '--verbose': case '-v': options.verbose = true; break;
       case '--help': case '-h': showHelp(); process.exit(0);
     }
@@ -40,6 +43,9 @@ Options:
   --loop               Auto-learning loop
   --iterations <n>     Loop iterations (default: 100)
   --dashboard          Generate HTML dashboard
+  --provider <name>    LLM provider: anthropic | openai (default: auto-detect from env)
+  --model <name>       Override LLM model for the selected provider
+  --dry-run            Print the LLM prompt without calling the API or modifying files
   --verbose, -v        Verbose output (show unmapped rules)
   --help, -h           Show this help
 
@@ -84,4 +90,7 @@ async function main() {
   }
 }
 
-main();
+main().catch(err => {
+  console.error(`\n❌ Unhandled error: ${err.message}`);
+  process.exit(1);
+});

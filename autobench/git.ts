@@ -59,15 +59,17 @@ export function commitChange(
   return commit(fullMessage);
 }
 
+// ─── Branch operations ──────────────────────────────────────────────
+
+export function createBranch(name: string): void {
+  git(['checkout', '-b', name]);
+}
+
 // ─── Check if working tree is clean ─────────────────────────────────
 
 export function isClean(): boolean {
-  try {
-    // Check for staged and unstaged changes only (not untracked files)
-    const staged = git(['diff', '--cached', '--name-only']);
-    const unstaged = git(['diff', '--name-only']);
-    return staged.length === 0 && unstaged.length === 0;
-  } catch {
-    return true;
-  }
+  // Check for staged and unstaged changes only (not untracked files)
+  const staged = git(['diff', '--cached', '--name-only']);
+  const unstaged = git(['diff', '--name-only']);
+  return staged.length === 0 && unstaged.length === 0;
 }
