@@ -9,7 +9,6 @@ import { interactiveMode } from "./prompts.js";
 import {
     SUPPORTED_AGENTS,
     SKILLS_LIST,
-    COMMANDS_LIST,
     PROFILES,
     getAllAgentIds,
 } from "./agents.js";
@@ -35,6 +34,7 @@ export function showUsage(): void {
     console.log(`    --gitignore          Add installed files to .gitignore ${dim("(default: off)")}`);
     console.log(`    --omo                Install Aegis security agent ${dim("(OpenCode + oh-my-openagent, mode: all)")}`);
     console.log(`    --aegis              Install Aegis security agent ${dim("(any agent — on-demand delegation)")}`);
+    console.log(`    --global             Install globally (to agent config dirs) instead of per-project`);
     console.log(`    --list               Show available agents, profiles, and skills`);
     console.log(`    --version, -v        Show version`);
     console.log(`    --help, -h           Show this help`);
@@ -46,6 +46,7 @@ export function showUsage(): void {
     console.log(`    npx agent-security-policies --agent claude --skills --aegis`);
     console.log(`    npx agent-security-policies --agent codex --target ./my-project`);
     console.log(`    npx agent-security-policies --all --profile lite`);
+    console.log(`    npx agent-security-policies --agent claude,codex --global`);
     console.log("");
 }
 
@@ -72,12 +73,6 @@ export function showList(): void {
         );
     }
 
-    console.log(`\n  ${bold("Security commands:")}\n`);
-    for (const c of COMMANDS_LIST) {
-        console.log(
-            `    ${cyan(c.id.padEnd(18))} ${c.description}`
-        );
-    }
     console.log("");
 }
 
@@ -91,6 +86,7 @@ interface ParsedArgs {
     gitignore: boolean;
     omo: boolean;
     aegis: boolean;
+    global: boolean;
     help: boolean;
     version: boolean;
     list: boolean;
@@ -106,6 +102,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         gitignore: false,
         omo: false,
         aegis: false,
+        global: false,
         help: false,
         version: false,
         list: false,
@@ -138,6 +135,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
                 break;
             case "--aegis":
                 args.aegis = true;
+                break;
+            case "--global":
+                args.global = true;
                 break;
             case "--profile":
                 i++;
@@ -227,6 +227,7 @@ async function main(): Promise<void> {
         gitignore: args.gitignore,
         omo: args.omo,
         aegis: args.aegis,
+        global: args.global,
     });
 }
 

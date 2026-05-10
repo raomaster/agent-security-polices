@@ -1,5 +1,6 @@
 ---
-description: "Revert the project to a previous asp-checkpoint and discard changes made after it"
+name: rollback
+description: Revert the working tree to a previously created checkpoint (git stash) created with the checkpoint skill.
 ---
 
 Revert the project to a previous checkpoint and discard the changes produced after it.

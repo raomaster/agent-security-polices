@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import * as os from "node:os";
+import * as path from "node:path";
+import * as fs from "node:fs";
 import {
     SUPPORTED_AGENTS,
     AEGIS_AGENT_CONTENT,
     SKILLS_LIST,
-    COMMANDS_LIST,
     PROFILES,
     INSTRUCTIONS_BLOCK,
     POLICY_FILES,
@@ -25,7 +27,7 @@ describe("SUPPORTED_AGENTS", () => {
             expect(agent.configPath).toBeTruthy();
             expect(agent.generateConfig).toBeTypeOf("function");
             expect(agent.skillFormat).toBeDefined();
-            expect(agent.commandFormat).toBeDefined();
+            // commandFormat removed — skills cover all agent instructions
         }
     });
 
@@ -73,14 +75,6 @@ describe("OpenCode agent", () => {
         });
     });
 
-    it("commands use copy format to .opencode/command/{command}.md", () => {
-        const oc = getAgentById("opencode")!;
-        expect(oc.commandFormat).toEqual({
-            type: "copy",
-            destPattern: ".opencode/command/{command}.md",
-        });
-    });
-
     it("has extraPaths for .opencode/agents/", () => {
         const oc = getAgentById("opencode")!;
         expect(oc.extraPaths).toContain(".opencode/agents/");
@@ -118,16 +112,119 @@ describe("AEGIS_AGENT_CONTENT", () => {
         expect(AEGIS_AGENT_CONTENT).toContain("security-review");
     });
 
-    it("references all 3 commands", () => {
-        expect(AEGIS_AGENT_CONTENT).toContain("/checkpoint");
-        expect(AEGIS_AGENT_CONTENT).toContain("/rollback");
-        expect(AEGIS_AGENT_CONTENT).toContain("/security-review");
+    it("references checkpoint and rollback skills", () => {
+        expect(AEGIS_AGENT_CONTENT).toContain("checkpoint");
+        expect(AEGIS_AGENT_CONTENT).toContain("rollback");
     });
 
     it("includes git safety rules", () => {
         expect(AEGIS_AGENT_CONTENT).toContain("Never force push");
         expect(AEGIS_AGENT_CONTENT).toContain("--no-verify");
         expect(AEGIS_AGENT_CONTENT).toContain("Rule 12");
+    });
+});
+
+describe("AgentConfig — global fields", () => {
+    it("every agent has globalDir function", () => {
+        for (const agent of SUPPORTED_AGENTS) {
+            expect(agent.globalDir).toBeTypeOf("function");
+            const dir = agent.globalDir(os.homedir());
+            expect(dir).toBeTruthy();
+            expect(path.isAbsolute(dir)).toBe(true);
+        }
+    });
+
+    it("every agent has globalConfigPath string", () => {
+        for (const agent of SUPPORTED_AGENTS) {
+            expect(agent.globalConfigPath).toBeTypeOf("string");
+            expect(agent.globalConfigPath.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("every agent has globalSkillFormat", () => {
+        for (const agent of SUPPORTED_AGENTS) {
+            expect(agent.globalSkillFormat).toBeDefined();
+            expect(["copy", "strip-frontmatter", "append", "none"]).toContain(
+                agent.globalSkillFormat.type
+            );
+        }
+    });
+
+    it("every agent has detect function", () => {
+        for (const agent of SUPPORTED_AGENTS) {
+            expect(agent.detect).toBeTypeOf("function");
+        }
+    });
+
+    it("claude globalDir resolves to ~/.claude", () => {
+        const claude = getAgentById("claude")!;
+        expect(claude.globalDir("/home/testuser")).toBe("/home/testuser/.claude");
+    });
+
+    it("codex globalDir resolves to ~/.codex", () => {
+        const codex = getAgentById("codex")!;
+        expect(codex.globalDir("/home/testuser")).toBe("/home/testuser/.codex");
+    });
+
+    it("opencode globalDir resolves to ~/.config/opencode", () => {
+        const oc = getAgentById("opencode")!;
+        expect(oc.globalDir("/home/testuser")).toBe("/home/testuser/.config/opencode");
+    });
+
+    it("antigravity globalDir resolves to ~/.agent", () => {
+        const ag = getAgentById("antigravity")!;
+        expect(ag.globalDir("/home/testuser")).toBe("/home/testuser/.agent");
+    });
+
+    it("copilot globalDir resolves to ~/.github", () => {
+        const cp = getAgentById("copilot")!;
+        expect(cp.globalDir("/home/testuser")).toBe("/home/testuser/.github");
+    });
+});
+
+describe("AgentConfig — detect()", () => {
+    it("claude detect returns true when ~/.claude exists", () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "asp-test-"));
+        const homeDir = path.join(tmpDir, "home");
+        fs.mkdirSync(path.join(homeDir, ".claude"), { recursive: true });
+        try {
+            const claude = getAgentById("claude")!;
+            expect(claude.detect(homeDir)).toBe(true);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it("claude detect returns false when not found", () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "asp-test-"));
+        const homeDir = path.join(tmpDir, "home");
+        fs.mkdirSync(homeDir, { recursive: true });
+        try {
+            const claude = getAgentById("claude")!;
+            expect(claude.detect(homeDir)).toBe(false);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it("detect never throws for copilot when .vscode is a file (readdirSync would fail)", () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "asp-test-"));
+        const homeDir = path.join(tmpDir, "home");
+        fs.mkdirSync(homeDir, { recursive: true });
+        // Create .vscode as a file, not a directory, so readdirSync throws ENOTDIR
+        fs.writeFileSync(path.join(homeDir, ".vscode"), "not a dir");
+        try {
+            const copilot = getAgentById("copilot")!;
+            expect(() => copilot.detect(homeDir)).not.toThrow();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it("detect never throws for standard agents with an unusual path", () => {
+        for (const agent of SUPPORTED_AGENTS) {
+            expect(() => agent.detect("/home/testuser/nonexistent/path")).not.toThrow();
+        }
     });
 });
 
@@ -155,8 +252,14 @@ describe("getAllAgentIds", () => {
 });
 
 describe("SKILLS_LIST", () => {
-    it("has 8 skills", () => {
-        expect(SKILLS_LIST).toHaveLength(8);
+    it("has 10 skills", () => {
+        expect(SKILLS_LIST).toHaveLength(10);
+    });
+
+    it("includes checkpoint and rollback", () => {
+        const ids = SKILLS_LIST.map((s) => s.id);
+        expect(ids).toContain("checkpoint");
+        expect(ids).toContain("rollback");
     });
 
     it("each skill has id, tool, description", () => {
@@ -165,17 +268,6 @@ describe("SKILLS_LIST", () => {
             expect(skill.tool).toBeTruthy();
             expect(skill.description).toBeTruthy();
         }
-    });
-});
-
-describe("COMMANDS_LIST", () => {
-    it("has 3 commands", () => {
-        expect(COMMANDS_LIST).toHaveLength(3);
-    });
-
-    it("includes checkpoint, rollback, security-review", () => {
-        const ids = COMMANDS_LIST.map((c) => c.id);
-        expect(ids).toEqual(["security-review", "checkpoint", "rollback"]);
     });
 });
 

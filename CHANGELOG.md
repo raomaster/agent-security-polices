@@ -164,6 +164,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Global installation** (`--global`) — detects installed AI agents and installs security rules to each agent's native global config directory; agents auto-detected by checking config dir presence (`~/.claude`, `~/.codex`, `~/.config/opencode`, `~/.agent`, `~/.github`)
+- **Interactive scope selection** — first question in interactive mode now asks Local vs Global; global mode shows detected agents with option to deselect
+- `checkpoint` skill — create labeled git stash checkpoint before risky operations (was a command, now installable for all agents)
+- `rollback` skill — revert to a previous checkpoint (was a command)
+- `security-review` skill unified — Phase 1 agent analysis (diff vs main + STRIDE threat model), Phase 2 tool scans (sast-scan, secrets-scan, dependency-scan, container-scan, iac-scan), Phase 3 fix-findings; replaces separate skill and command
+- `AgentConfig.globalDir`, `globalConfigPath`, `globalSkillFormat`, `globalDirectories`, `detect()` — enables per-agent global installation paths
+- `detectAgents()` — returns list of agents whose global config directory exists on this machine
 - `skills/README.md` — Skills Design and Creation Guide: anatomy of a `SKILL.md`, step-by-step process to add new skills, design principles (zero deps, one tool per skill, agent-agnostic)
 
 ### Changed
@@ -174,6 +181,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `README.md` — Quick Install now documents that `--all` includes the skills pack by default
 - `CONTRIBUTING.md` — added section 3 "Add or Improve Security Skills" with link to `skills/README.md`; sections renumbered to maintain correct order (1–5)
 - `ROADMAP.md` — v1.3 (`Security Skills`) moved to Completed with deliverables marked as implemented
+- `SKILLS_LIST` expanded from 8 to 10 skills (added `checkpoint`, `rollback`)
+- All agents now receive skills (including `checkpoint`, `rollback`) — Codex and Antigravity previously received no commands
+
+### Removed
+
+- `commands/` directory — `checkpoint`, `rollback`, `security-review` command moved to skills
+- `CommandFormat` type and `commandFormat` field from `AgentConfig`
+- `COMMANDS_LIST` export from `agents.ts`
+- `installCommands()` from `installer.ts`
 
 ## [1.1.0] — 2026-02-15
 

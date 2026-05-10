@@ -8,13 +8,13 @@ import { fileURLToPath } from "node:url";
 import {
     SUPPORTED_AGENTS,
     SKILLS_LIST,
-    COMMANDS_LIST,
     POLICY_FILES,
     PROFILES,
     INSTRUCTIONS_BLOCK,
     generateAegisContent,
     getAgentById,
     type AgentConfig,
+    type SkillFormat,
 } from "./agents.js";
 import { info, ok, warn, err, step } from "./logger.js";
 
@@ -32,6 +32,9 @@ export interface InstallOptions {
     gitignore: boolean;
     omo: boolean;
     aegis: boolean;
+    global: boolean;
+    /** For testing: override os.homedir() in global mode */
+    _homeDir?: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -172,6 +175,17 @@ export function detectOhMyOpenagent(homeDir?: string): boolean {
 /** @deprecated Use detectOhMyOpenagent() instead */
 export const detectOhMyOpencode = detectOhMyOpenagent;
 
+// ─── Agent detection ────────────────────────────────────────────────
+
+/**
+ * Detect which agents are installed on this machine.
+ * Returns the subset of SUPPORTED_AGENTS whose detect() returns true.
+ * @param homeDir — override home directory (for testing)
+ */
+export function detectAgents(homeDir?: string): AgentConfig[] {
+    return SUPPORTED_AGENTS.filter((agent) => agent.detect(homeDir));
+}
+
 /**
  * Read the oh-my-openagent config and return the model configured for
  * the Sisyphus worker agent (the main OmO worker). Returns undefined if
@@ -196,26 +210,20 @@ export function getOmoWorkerModel(homeDir?: string): string | undefined {
 }
 
 // ─── Step 1: Core files ─────────────────────────────────────────────
-function installCoreFiles(targetDir: string, profile: string): void {
-    step(`Installing security policies to ${targetDir}`);
-
-    // Find profile config
+function installCoreFilesTo(targetDir: string, profile: string): void {
     const profileConfig = PROFILES.find((p) => p.id === profile) ?? PROFILES[0];
     const rulesFile = profileConfig.file;
 
-    // Copy AGENT_RULES*.md
     const rulesSrc = path.join(PACKAGE_ROOT, rulesFile);
     const rulesDest = path.join(targetDir, rulesFile);
-    copyIfMissing(rulesSrc, rulesDest, `${rulesFile} (profile: ${profile})`);
+    copyIfMissing(rulesSrc, rulesDest, rulesFile);
 
-    // If lite profile, also copy full rules for reference
     if (profile === "lite") {
         const fullSrc = path.join(PACKAGE_ROOT, "AGENT_RULES.md");
         const fullDest = path.join(targetDir, "AGENT_RULES.md");
         copyIfMissing(fullSrc, fullDest, "AGENT_RULES.md (full reference)");
     }
 
-    // Copy policies/
     const policiesDir = path.join(targetDir, "policies");
     ensureDir(policiesDir);
     for (const policy of POLICY_FILES) {
@@ -225,7 +233,36 @@ function installCoreFiles(targetDir: string, profile: string): void {
     }
 }
 
+function installCoreFiles(targetDir: string, profile: string): void {
+    step(`Installing security policies to ${targetDir}`);
+    installCoreFilesTo(targetDir, profile);
+}
+
 // ─── Step 2: Agent configs ──────────────────────────────────────────
+function installAgentConfigAt(
+    targetDir: string,
+    configPath: string,
+    agent: AgentConfig
+): void {
+    const fullPath = path.join(targetDir, configPath);
+
+    if (fs.existsSync(fullPath)) {
+        const existing = fs.readFileSync(fullPath, "utf-8");
+        if (existing.includes("AGENT_RULES.md")) {
+            warn(`${configPath} already references AGENT_RULES.md — skipping`);
+        } else {
+            const appendText = `\n\n<!-- agent-security-policies -->\n${INSTRUCTIONS_BLOCK}\n`;
+            fs.appendFileSync(fullPath, appendText, "utf-8");
+            ok(`${configPath} — appended security rules`);
+        }
+    } else {
+        ensureDir(path.dirname(fullPath));
+        const content = agent.generateConfig(INSTRUCTIONS_BLOCK);
+        fs.writeFileSync(fullPath, content, "utf-8");
+        ok(`${configPath} — created`);
+    }
+}
+
 function installAgentConfigs(targetDir: string, agentIds: string[]): void {
     for (const agentId of agentIds) {
         const agent = getAgentById(agentId);
@@ -263,6 +300,72 @@ function installAgentConfigs(targetDir: string, agentIds: string[]): void {
 }
 
 // ─── Step 3: Skills ─────────────────────────────────────────────────
+function installSkillsTo(
+    targetDir: string,
+    skillFormat: SkillFormat,
+    directories: string[]
+): void {
+    if (skillFormat.type === "none") return;
+
+    for (const dir of directories) {
+        ensureDir(path.join(targetDir, dir));
+    }
+
+    for (const skill of SKILLS_LIST) {
+        const skillSrc = path.join(PACKAGE_ROOT, "skills", skill.id, "SKILL.md");
+        if (!fs.existsSync(skillSrc)) continue;
+
+        const skillContent = fs.readFileSync(skillSrc, "utf-8");
+
+        switch (skillFormat.type) {
+            case "copy": {
+                const destPath = path.join(
+                    targetDir,
+                    skillFormat.destPattern.replace("{skill}", skill.id)
+                );
+                ensureDir(path.dirname(destPath));
+                if (fs.existsSync(destPath)) {
+                    warn(`${skillFormat.destPattern.replace("{skill}", skill.id)} already exists — skipping`);
+                } else {
+                    fs.copyFileSync(skillSrc, destPath);
+                    ok(skillFormat.destPattern.replace("{skill}", skill.id));
+                }
+                break;
+            }
+            case "strip-frontmatter": {
+                const destPath = path.join(
+                    targetDir,
+                    skillFormat.destPattern.replace("{skill}", skill.id)
+                );
+                ensureDir(path.dirname(destPath));
+                if (fs.existsSync(destPath)) {
+                    warn(`${skillFormat.destPattern.replace("{skill}", skill.id)} already exists — skipping`);
+                } else {
+                    const stripped = stripYamlFrontmatter(skillContent);
+                    fs.writeFileSync(destPath, stripped, "utf-8");
+                    ok(skillFormat.destPattern.replace("{skill}", skill.id));
+                }
+                break;
+            }
+            case "append": {
+                const destPath = path.join(targetDir, skillFormat.destFile);
+                if (fs.existsSync(destPath)) {
+                    const existing = fs.readFileSync(destPath, "utf-8");
+                    if (existing.includes(`skill:${skill.id}`)) {
+                        warn(`${skillFormat.destFile} already contains ${skill.id} — skipping`);
+                        continue;
+                    }
+                }
+                const stripped = stripYamlFrontmatter(skillContent);
+                const appendText = `\n\n<!-- skill:${skill.id} -->\n${stripped}`;
+                fs.appendFileSync(destPath, appendText, "utf-8");
+                ok(`${skillFormat.destFile} — appended ${skill.id} skill`);
+                break;
+            }
+        }
+    }
+}
+
 function installSkills(targetDir: string, agentIds: string[]): void {
     step("Installing security skills");
 
@@ -346,88 +449,69 @@ function installSkills(targetDir: string, agentIds: string[]): void {
     }
 }
 
-// ─── Step 3b: Commands ───────────────────────────────────────────────
-function installCommands(targetDir: string, agentIds: string[]): void {
-    step("Installing security commands");
+// ─── Global installation ─────────────────────────────────────────────
+async function installGlobal(opts: InstallOptions): Promise<void> {
+    const homeDir = opts._homeDir ?? os.homedir();
 
-    // Copy commands/ directory
-    const commandsDir = path.join(targetDir, "commands");
-    ensureDir(commandsDir);
-
-    for (const command of COMMANDS_LIST) {
-        const src = path.join(PACKAGE_ROOT, "commands", `${command.id}.md`);
-        const dest = path.join(commandsDir, `${command.id}.md`);
-        copyIfMissing(src, dest, `commands/${command.id}.md`);
-    }
-
-    // Install commands per agent format
-    for (const agentId of agentIds) {
+    for (const agentId of opts.agents) {
         const agent = getAgentById(agentId);
-        if (!agent) continue;
+        if (!agent) {
+            warn(`Unknown agent: ${agentId} — skipping`);
+            continue;
+        }
 
-        const format = agent.commandFormat;
-        if (format.type === "none") continue;
+        const agentGlobalDir = agent.globalDir(homeDir);
 
-        step(`Installing commands for ${agent.name}`);
+        step(`Installing globally for ${agent.name} → ${agentGlobalDir}`);
 
-        for (const command of COMMANDS_LIST) {
-            const cmdSrc = path.join(targetDir, "commands", `${command.id}.md`);
-            if (!fs.existsSync(cmdSrc)) continue;
+        // Create global directories if needed
+        for (const dir of agent.globalDirectories) {
+            ensureDir(path.join(agentGlobalDir, dir));
+        }
 
-            const cmdContent = fs.readFileSync(cmdSrc, "utf-8");
+        // 1. Core files
+        installCoreFilesTo(agentGlobalDir, opts.profile);
 
-            switch (format.type) {
-                case "copy": {
-                    const destPath = path.join(
-                        targetDir,
-                        format.destPattern.replace("{command}", command.id)
-                    );
-                    ensureDir(path.dirname(destPath));
-                    if (fs.existsSync(destPath)) {
-                        warn(`${format.destPattern.replace("{command}", command.id)} already exists — skipping`);
-                    } else {
-                        fs.copyFileSync(cmdSrc, destPath);
-                        ok(format.destPattern.replace("{command}", command.id));
-                    }
-                    break;
-                }
+        // 2. Agent config
+        installAgentConfigAt(agentGlobalDir, agent.globalConfigPath, agent);
 
-                case "strip-frontmatter": {
-                    const destPath = path.join(
-                        targetDir,
-                        format.destPattern.replace("{command}", command.id)
-                    );
-                    ensureDir(path.dirname(destPath));
-                    if (fs.existsSync(destPath)) {
-                        warn(`${format.destPattern.replace("{command}", command.id)} already exists — skipping`);
-                    } else {
-                        const stripped = stripYamlFrontmatter(cmdContent);
-                        fs.writeFileSync(destPath, stripped, "utf-8");
-                        ok(format.destPattern.replace("{command}", command.id));
-                    }
-                    break;
-                }
+        // 3. Skills
+        if (opts.skills) {
+            installSkillsTo(agentGlobalDir, agent.globalSkillFormat, agent.globalDirectories);
+        }
 
-                case "append": {
-                    const destPath = path.join(targetDir, format.destFile);
-                    if (fs.existsSync(destPath)) {
-                        const existing = fs.readFileSync(destPath, "utf-8");
-                        if (existing.includes(`command:${command.id}`)) {
-                            warn(`${format.destFile} already contains ${command.id} — skipping`);
-                            continue;
-                        }
-                    }
-                    const stripped = stripYamlFrontmatter(cmdContent);
-                    const appendText = `\n\n<!-- command:${command.id} -->\n${stripped}`;
-                    fs.appendFileSync(destPath, appendText, "utf-8");
-                    ok(`${format.destFile} — appended ${command.id} command`);
-                    break;
-                }
+        // 4. Aegis (Claude Code)
+        if (opts.aegis && agentId === "claude") {
+            const agentsDir = path.join(agentGlobalDir, "agents");
+            ensureDir(agentsDir);
+            const aegisPath = path.join(agentsDir, "aegis.md");
+            if (!fs.existsSync(aegisPath)) {
+                fs.writeFileSync(aegisPath, generateAegisContent("sonnet"), "utf-8");
+                ok(`Aegis installed globally (Claude Code)`);
+            } else {
+                warn(`Aegis already exists for Claude Code — skipping`);
+            }
+        }
+
+        // 5. Aegis (OpenCode)
+        if (opts.omo && agentId === "opencode") {
+            const agentsDir = path.join(agentGlobalDir, "agents");
+            ensureDir(agentsDir);
+            const aegisPath = path.join(agentsDir, "aegis.md");
+            if (!fs.existsSync(aegisPath)) {
+                const model = getOmoWorkerModel(homeDir);
+                fs.writeFileSync(aegisPath, generateAegisContent(model), "utf-8");
+                ok(`Aegis installed globally (OpenCode)`);
+            } else {
+                warn(`Aegis already exists for OpenCode — skipping`);
             }
         }
     }
+
+    printGlobalSummary(opts, homeDir);
 }
 
+// ─── Step 3b: Commands ───────────────────────────────────────────────
 // ─── Step 3c: Aegis agent ────────────────────────────────────────────
 // OpenCode discovers agents from .opencode/agents/ (per-project)
 // or ~/.config/opencode/agents/ (global). NOT from .claude/agents/.
@@ -519,17 +603,6 @@ function updateGitignore(targetDir: string, opts: InstallOptions): void {
                 }
                 // "append" and "none" don't create separate skill directories
             }
-
-            // Also collect command directories
-            const cmdFormat = agent.commandFormat;
-            switch (cmdFormat.type) {
-                case "copy":
-                case "strip-frontmatter": {
-                    const dir = path.dirname(cmdFormat.destPattern).replace(/\\/g, "/");
-                    skillDirs.add(dir + "/");
-                    break;
-                }
-            }
         }
         for (const dir of skillDirs) {
             entries.push(dir);
@@ -613,6 +686,26 @@ async function confirmAppend(existingFiles: string[]): Promise<boolean> {
 }
 
 // ─── Summary ────────────────────────────────────────────────────────
+function printGlobalSummary(opts: InstallOptions, homeDir: string): void {
+    step("Global installation complete!");
+    console.log("");
+    info("Security rules installed globally — applies to ALL projects on this machine");
+    console.log("");
+    for (const agentId of opts.agents) {
+        const agent = getAgentById(agentId);
+        if (!agent) continue;
+        const globalDir = agent.globalDir(homeDir);
+        const configFile = path.join(globalDir, agent.globalConfigPath);
+        info(`${agent.name.padEnd(16)} → ${configFile}`);
+    }
+    console.log("");
+    info(`Profile: ${opts.profile}`);
+    if (opts.skills) {
+        info(`Skills installed: ${SKILLS_LIST.map((s) => s.id).join(", ")}`);
+    }
+    console.log("");
+}
+
 function printSummary(opts: InstallOptions): void {
     step("Done!");
     console.log("");
@@ -621,7 +714,6 @@ function printSummary(opts: InstallOptions): void {
     info(`Profile: ${opts.profile}`);
     if (opts.skills) {
         info(`Skills installed: ${SKILLS_LIST.map((s) => s.id).join(", ")}`);
-        info(`Commands installed: ${COMMANDS_LIST.map((c) => c.id).join(", ")}`);
     }
     if (opts.omo && opts.agents.includes("opencode")) {
         info("Aegis security agent installed (.opencode/agents/aegis.md)");
@@ -664,6 +756,10 @@ function printSummary(opts: InstallOptions): void {
 
 // ─── Main entry ─────────────────────────────────────────────────────
 export async function install(opts: InstallOptions): Promise<void> {
+    if (opts.global) {
+        return installGlobal(opts);
+    }
+
     const targetDir = path.resolve(opts.target);
 
     // Validate target exists
@@ -705,7 +801,6 @@ export async function install(opts: InstallOptions): Promise<void> {
     // Step 3: Skills
     if (opts.skills) {
         installSkills(targetDir, opts.agents);
-        installCommands(targetDir, opts.agents);
     }
 
     // Step 3c: Aegis agent

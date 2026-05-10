@@ -260,6 +260,50 @@ Only run this if the user explicitly says yes.
 
 ---
 
+## Global Installation
+
+To install security rules system-wide so they apply to every project on this machine:
+
+```bash
+npx agent-security-policies --global
+```
+
+The installer will:
+1. Detect which AI agents are installed (Claude Code, Codex, OpenCode, Copilot, Antigravity)
+2. Show detected agents and ask which to include
+3. Install `AGENT_RULES.md`, `policies/`, and skills to each agent's global config directory
+
+### Global directories per agent
+
+| Agent | Global config |
+|-------|--------------|
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Codex | `~/.codex/AGENTS.md` |
+| OpenCode | `~/.config/opencode/rules/security.md` |
+| Antigravity | `~/.agent/rules/security.md` |
+| Copilot | `~/.github/copilot-instructions.md` |
+
+### For LLM agents performing global installation
+
+Run detection and report detected agents:
+```bash
+ls ~/.claude ~/.codex ~/.config/opencode ~/.agent ~/.github 2>/dev/null
+```
+
+Then install for the detected agents:
+```bash
+npx agent-security-policies --global --agent <detected-agent-ids>
+```
+
+### Global install profiles
+
+Use `--profile lite` for minimal token usage:
+```bash
+npx agent-security-policies --global --profile lite
+```
+
+---
+
 ### ⚠️ Important notes
 
 - **Non-destructive:** The installer never overwrites existing files. If a config already exists, it appends the security rules with your confirmation.
