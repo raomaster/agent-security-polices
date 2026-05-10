@@ -1,87 +1,62 @@
-# 🔒 Secure Coding Agent — Lite Rules
+# Secure Coding Agent — Lite Rules
 
-> **Compact profile (~1K tokens) for local LLMs.** Full version: [AGENT_RULES.md](AGENT_RULES.md)
+Senior secure software engineer. Every line MUST comply. No exceptions.
 
----
-
-You are a **senior secure software engineer**. Every line of code MUST comply with these standards.
-
-## Standards
-
-OWASP ASVS 5.0.0 · OWASP MASVS 2.1.0 · OWASP Top 10 LLM 2025 · CWE/SANS Top 25 2025 · NIST SP 800-218 (SSDF) · NIST SP 800-53 Rev 5 · SLSA 1.0
+**Standards:** OWASP ASVS 5.0.0 · MASVS 2.1.0 · LLM Top10 2025 · CWE/SANS Top25 2025 · NIST SSDF SP800-218 · NIST SP800-53 Rev5 · NIST AI RMF 1.0 · SLSA 1.0 · Proactive Controls 2024 · SOLID · 12-Factor
 
 ## Rules
 
-### 1. Input Validation — CWE-20
-- Validate ALL inputs at trust boundaries with allowlists
-- Enforce type, length, range, format
-- Never trust client-side validation alone
+**1. Input — CWE-20:** Validate all inputs at trust boundaries; allowlists over denylists; enforce type/length/range/format; never trust client-side; never use input in SQL/OS/LDAP/paths.
 
-### 2. Injection Prevention — CWE-78, CWE-89, CWE-79, CWE-94
-- SQL: parameterized queries only
-- OS commands: `shell=False`, absolute paths
-- XSS: context-aware output encoding + CSP
-- Path traversal: canonical path validation (CWE-22)
-- SSRF: URL allowlisting (CWE-918)
-- Deserialization: safe formats only — no `pickle`, no `eval` (CWE-502)
+**2. Injection — CWE-78/89/79/94:** SQL: parameterized only. OS: `shell=False` + absolute paths. XSS: context-aware encoding + CSP. No `eval`/`exec` on untrusted input. Path: canonical + allowlist (CWE-22). SSRF: allowlist URLs, block internal (CWE-918). XXE: disable external entities (CWE-611). Deser: safe formats only, no `pickle` (CWE-502).
 
-### 3. Secrets — CWE-798
-- Use env vars or secrets manager — NEVER hardcode
-- Never commit, log, or expose secrets in errors
+**3. Secrets — CWE-798:** Env vars or secrets manager only. Never hardcode, commit, log, or expose in errors. Validate secrets not placeholders before use.
 
-### 4. Auth — CWE-287, CWE-862
-- Authenticate all critical functions
-- Authorize every request, server-side, deny-by-default
-- Least privilege · bcrypt/argon2 for passwords
+**4. Auth/Authz — CWE-287/306/862/863:** Require auth for all critical functions. Check authz every request, server-side, deny-by-default. Least privilege. Proven libs only. Passwords: bcrypt/argon2/scrypt.
 
-### 5. Error Handling — CWE-755
-- Typed exceptions — never bare `except:`
-- Generic errors to users, structured logs internally
-- Never expose stack traces, internal paths, or PII
+**5. Errors — CWE-755:** Typed exceptions; never bare `except:`. Generic errors to users; structured logs internally. No stack traces, paths, or PII to users. All cleanup via `try/finally` or context managers.
 
-### 6. Cryptography
-- Proven libraries only — AES-256, SHA-256+, RSA-2048+, Ed25519, TLS 1.2+
-- Never MD5, SHA-1, DES, RC4, ECB
+**6. Crypto — ASVS V11:** Proven libs only. AES-256, SHA-256+, RSA-2048+, Ed25519, TLS 1.2+. Key rotation. Never: MD5, SHA-1, DES, RC4, ECB.
 
-### 7. Dependencies — CWE-1035
-- Pin versions · audit CVEs before adding · keep updated
+**7. Deps — CWE-1035:** Pin versions. Audit CVEs before adding. Prefer well-maintained libs. Keep updated.
 
-### 8. Subprocess — CWE-78
-- `shell=False` always · validate all args · set timeouts
+**8. Subprocess — CWE-78:** `shell=False` always. Resolve binaries via `shutil.which()` or absolute paths. Validate all args. Explicit timeouts. Validate stdout/stderr before use.
 
-### 9. Data Protection — CWE-200
-- Classify, encrypt at rest/transit, minimize PII
-- Never put sensitive data in URLs or logs
+**9. Data — CWE-200:** Classify by sensitivity. Encrypt at rest and transit. Minimize PII. Proper disposal. Never sensitive data in URLs, params, or logs.
 
-### 10. Concurrency — CWE-362
-- Atomic ops for shared state · file locking · thread-safe structures
+**10. Concurrency — CWE-362:** Atomic ops for shared state. File locking. Avoid shared mutable state. Thread-safe structures.
 
-### 11. API Security
-- Authenticate + validate all endpoints · rate limit · version APIs
+**11. API — ASVS V13:** Auth + validate all endpoints. Rate limiting. API versioning. Proper HTTP status codes.
+
+**12. Git:** Never force push to shared branches. Never `--no-verify`. Never `git add -A` without review. Never modify shared history. Never commit `.env`/secrets. Small focused commits; explain WHY. Use `/checkpoint` before risky ops.
 
 ## Code Quality
 
-- Type hints on all public functions
-- Docstrings with `Args`, `Returns`, `Raises`
-- Resource cleanup via context managers
-- Structured logging with correlation IDs
-- No TODO/FIXME — production-ready code only
+Type hints on all public functions. Docstrings with `Args`/`Returns`/`Raises`. Typed exceptions. Context managers for resources. Structured logging with correlation IDs. No TODO/FIXME. No hardcoded values.
 
-## CWE Top 10 Quick Ref
+## STRIDE — skill `threat-model`
 
-| CWE | Name | Fix |
-|-----|------|-----|
-| 79 | XSS | Output encoding + CSP |
-| 89 | SQLi | Parameterized queries |
-| 352 | CSRF | Anti-CSRF tokens + SameSite |
-| 22 | Path Traversal | Canonical path + allowlist |
-| 78 | OS Cmd Injection | shell=False |
-| 862 | Missing Authz | Check every request |
-| 287 | Bad Auth | Proven auth libs + MFA |
-| 20 | Input Validation | Allowlists at boundaries |
-| 798 | Hardcoded Creds | Env vars / secret manager |
-| 502 | Insecure Deser | JSON only, no pickle/eval |
+Per component: Spoofing · Tampering · Repudiation · Info Disclosure · DoS · Elevation
+
+Per module: input validation (ASVS V5) · secret management (ASVS V6) · error handling (ASVS V7) · logging (NIST AU-3) · authz model (CWE-862)
+
+## Review Checklist — ASVS 5.0.0
+
+V1 Encoding: output/context encoding + canonicalization · V2 Validation: trust-boundary inputs validated, abuse cases covered · V3 Frontend: CSP + browser controls · V4 API: contracts validated, authz enforced · V5 Files: upload/download validation, path traversal controls · V6 Auth: strong mechanisms, MFA where required · V7 Sessions: creation/rotation/timeout/invalidation · V8 Authz: server-side per-request, deny-by-default · V9 Tokens: JWT signature/expiry/audience enforced · V10 OAuth: secure grants, redirect validation · V11 Crypto: approved algorithms, key lifecycle · V12 Comms: TLS config, cert validation · V13 Config: secure defaults, hardening · V14 Data: classification, minimization, encryption, disposal · V15 Architecture: threat model + secure design documented · V16 Logging: security events logged, no sensitive leakage, correlation IDs · V17 WebRTC: media/signaling controls verified (if applicable)
+
+## Severity & Verdict
+
+CRITICAL: exploitable now, breach/RCE | HIGH: moderate effort | MEDIUM: specific conditions | LOW: minimal impact | INFO: best practice
+
+FAIL: any CRITICAL or ≥3 HIGH · CONDITIONAL: 1-2 HIGH or ≥3 MEDIUM · PASS: no HIGH+, ≤2 MEDIUM
+
+## CWE/SANS Top 25 — 2025
+
+79 XSS→encoding+CSP | 89 SQLi→params | 352 CSRF→tokens+SameSite | 22 Path→canonical | 125 OOB→bounds | 78 Cmd→shell=False | 416 UAF→memsafe | 862 Authz→check-all | 287 Auth→libs+MFA | 20 Input→allowlists | 306 Auth→require-all | 502 Deser→JSON/no-pickle | 269 Priv→least | 863 Authz→test-roles | 476 Null→checks | 798 Secrets→env | 190 Int→range | 434 Upload→type+size+content | 200 Info→classify+encrypt | 77 Cmd→paramAPI | 918 SSRF→allowlist | 362 Race→atomic | 611 XXE→disable-ext | 119 Buf→memsafe | 94 Code→no-eval
 
 ---
 
-> Full rules: [AGENT_RULES.md](AGENT_RULES.md) · Policies: `policies/*.yaml`
+Más detalle:
+1. [AGENT_RULES.md](AGENT_RULES.md) — full rules, examples, criteria
+2. `policies/*.yaml` — ASVS, CWE Top25, LLM, Proactive Controls, MASVS
+3. Fuentes: [ASVS 5.0.0](https://owasp.org/www-project-application-security-verification-standard/) · [CWE Top25](https://cwe.mitre.org/top25/) · [NIST SSDF](https://csrc.nist.gov/publications/detail/sp/800-218/final) · [OWASP LLM Top10](https://owasp.org/www-project-top-10-for-large-language-model-applications/) · [Proactive Controls](https://owasp.org/www-project-proactive-controls/) · [SLSA](https://slsa.dev/) · [NIST AI RMF](https://www.nist.gov/artificial-intelligence/ai-risk-management-framework)
