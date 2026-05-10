@@ -28,6 +28,10 @@ __pycache__/
 *.log
 .env
 
+# Coverage reports (auto-generated)
+coverage/
+lcov.info
+
 # AutoBench
 autobench/node_modules/
 results/results.tsv
