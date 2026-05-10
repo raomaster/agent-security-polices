@@ -8,9 +8,11 @@ import {
     detectOhMyOpenagent,
     detectOhMyOpencode,
     getOmoConfigPaths,
+    getOmoWorkerModel,
     install,
+    detectAgents,
 } from "../installer.js";
-import { AEGIS_AGENT_CONTENT } from "../agents.js";
+import { AEGIS_AGENT_CONTENT, generateAegisContent } from "../agents.js";
 
 // Silence all installer output
 beforeEach(() => {
@@ -353,6 +355,80 @@ describe("detectOhMyOpencode (deprecated alias)", () => {
     });
 });
 
+// ─── getOmoWorkerModel ──────────────────────────────────────────────
+
+describe("getOmoWorkerModel", () => {
+    let tmpDir: string;
+    beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "asp-wm-")); });
+    afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+    it("returns undefined when no config file exists", () => {
+        expect(getOmoWorkerModel(tmpDir)).toBeUndefined();
+    });
+
+    it("returns model from agents.sisyphus.model in oh-my-openagent.jsonc", () => {
+        const dir = path.join(tmpDir, ".config", "opencode");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(
+            path.join(dir, "oh-my-openagent.jsonc"),
+            `{\n  "plugin": ["oh-my-openagent"],\n  "agents": { "sisyphus": { "model": "anthropic/claude-sonnet-4-6" } }\n}`
+        );
+        expect(getOmoWorkerModel(tmpDir)).toBe("anthropic/claude-sonnet-4-6");
+    });
+
+    it("returns model from opencode.json when oh-my-openagent.jsonc has no agents key", () => {
+        const dir = path.join(tmpDir, ".config", "opencode");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(
+            path.join(dir, "opencode.json"),
+            '{"plugins": ["oh-my-openagent"], "agents": {"sisyphus": {"model": "github-copilot/claude-opus-4-6"}}}'
+        );
+        expect(getOmoWorkerModel(tmpDir)).toBe("github-copilot/claude-opus-4-6");
+    });
+
+    it("returns undefined when sisyphus has no model key", () => {
+        const dir = path.join(tmpDir, ".config", "opencode");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(
+            path.join(dir, "oh-my-openagent.jsonc"),
+            '{"plugin": ["oh-my-openagent"], "agents": {"sisyphus": {}}}'
+        );
+        expect(getOmoWorkerModel(tmpDir)).toBeUndefined();
+    });
+
+    it("returns undefined when config is malformed", () => {
+        const dir = path.join(tmpDir, ".config", "opencode");
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, "oh-my-openagent.jsonc"), "NOT_JSON");
+        expect(getOmoWorkerModel(tmpDir)).toBeUndefined();
+    });
+});
+
+// ─── generateAegisContent ───────────────────────────────────────────
+
+describe("generateAegisContent", () => {
+    it("omits model line when no model provided", () => {
+        const content = generateAegisContent();
+        expect(content).not.toContain("model:");
+    });
+
+    it("injects model line when model provided", () => {
+        const content = generateAegisContent("anthropic/claude-sonnet-4-6");
+        expect(content).toContain("model: anthropic/claude-sonnet-4-6");
+    });
+
+    it("model line appears before mode: all in frontmatter", () => {
+        const content = generateAegisContent("sonnet");
+        const modelIdx = content.indexOf("model: sonnet");
+        const modeIdx = content.indexOf("mode: all");
+        expect(modelIdx).toBeLessThan(modeIdx);
+    });
+
+    it("AEGIS_AGENT_CONTENT default has no model", () => {
+        expect(AEGIS_AGENT_CONTENT).not.toContain("model:");
+    });
+});
+
 // ─── install() — end-to-end integration tests ───────────────────────
 
 describe("install() — opencode vanilla (no skills, no omo)", () => {
@@ -367,6 +443,8 @@ describe("install() — opencode vanilla (no skills, no omo)", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
     });
     afterEach(() => {
@@ -425,6 +503,8 @@ describe("install() — opencode with skills", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
     });
     afterEach(() => {
@@ -435,16 +515,16 @@ describe("install() — opencode with skills", () => {
         expect(fs.existsSync(path.join(tmpDir, "skills"))).toBe(true);
     });
 
-    it("copies all 8 skills to skills/", () => {
+    it("copies all 10 skills to skills/", () => {
         const skills = fs.readdirSync(path.join(tmpDir, "skills"));
-        expect(skills).toHaveLength(8);
+        expect(skills).toHaveLength(10);
     });
 
     it("installs skills to .opencode/skills/{id}/SKILL.md", () => {
         const skillsDir = path.join(tmpDir, ".opencode", "skills");
         expect(fs.existsSync(skillsDir)).toBe(true);
         const installed = fs.readdirSync(skillsDir);
-        expect(installed).toHaveLength(8);
+        expect(installed).toHaveLength(10);
     });
 
     it("each opencode skill is a complete copy with frontmatter", () => {
@@ -460,18 +540,7 @@ describe("install() — opencode with skills", () => {
         expect(content).toContain("description:");
     });
 
-    it("creates commands/ directory", () => {
-        expect(fs.existsSync(path.join(tmpDir, "commands"))).toBe(true);
-    });
-
-    it("installs all 3 commands to .opencode/command/", () => {
-        const cmdDir = path.join(tmpDir, ".opencode", "command");
-        const cmds = fs.readdirSync(cmdDir);
-        expect(cmds).toHaveLength(3);
-        expect(cmds).toContain("checkpoint.md");
-        expect(cmds).toContain("rollback.md");
-        expect(cmds).toContain("security-review.md");
-    });
+    // command tests removed — commands migrated to skills infrastructure
 });
 
 describe("install() — opencode with omo (Aegis discipline agent)", () => {
@@ -486,6 +555,8 @@ describe("install() — opencode with omo (Aegis discipline agent)", () => {
             target: tmpDir,
             gitignore: false,
             omo: true,
+            aegis: false,
+            global: false,
         });
     });
     afterEach(() => {
@@ -548,6 +619,7 @@ describe("install() — claude agent with --aegis (Claude Code subagent)", () =>
             gitignore: false,
             omo: false,
             aegis: true,
+            global: false,
         });
     });
     afterEach(() => {
@@ -560,12 +632,13 @@ describe("install() — claude agent with --aegis (Claude Code subagent)", () =>
         ).toBe(true);
     });
 
-    it("aegis.md content matches AEGIS_AGENT_CONTENT", () => {
+    it("aegis.md content includes model: sonnet for Claude Code", () => {
         const written = fs.readFileSync(
             path.join(tmpDir, ".claude", "agents", "aegis.md"),
             "utf-8"
         );
-        expect(written).toBe(AEGIS_AGENT_CONTENT);
+        expect(written).toBe(generateAegisContent("sonnet"));
+        expect(written).toContain("model: sonnet");
     });
 
     it("does NOT create .opencode/agents/aegis.md for claude agent", () => {
@@ -616,6 +689,8 @@ describe("install() — gitignore management", () => {
             target: tmpDir,
             gitignore: true,
             omo: true,
+            aegis: false,
+            global: false,
         });
         const giPath = path.join(tmpDir, ".gitignore");
         expect(fs.existsSync(giPath)).toBe(true);
@@ -639,6 +714,8 @@ describe("install() — gitignore management", () => {
             target: tmpDir,
             gitignore: true,
             omo: false,
+            aegis: false,
+            global: false,
         });
         const content = fs.readFileSync(giPath, "utf-8");
         expect(content).toContain("node_modules/");
@@ -664,6 +741,8 @@ describe("install() — gitignore management", () => {
             target: tmpDir,
             gitignore: true,
             omo: false,
+            aegis: false,
+            global: false,
         });
         const content = fs.readFileSync(giPath, "utf-8");
         expect(content).not.toContain("OLD_CONTENT.md");
@@ -681,6 +760,8 @@ describe("install() — gitignore management", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         expect(fs.existsSync(path.join(tmpDir, ".gitignore"))).toBe(false);
     });
@@ -702,6 +783,8 @@ describe("install() — agent-specific formats", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         const skillPath = path.join(tmpDir, ".claude", "commands", "sast-scan.md");
         expect(fs.existsSync(skillPath)).toBe(true);
@@ -719,6 +802,8 @@ describe("install() — agent-specific formats", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         expect(fs.existsSync(path.join(tmpDir, "CLAUDE.md"))).toBe(true);
     });
@@ -732,6 +817,8 @@ describe("install() — agent-specific formats", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         expect(
             fs.existsSync(path.join(tmpDir, ".github", "copilot-instructions.md"))
@@ -747,6 +834,8 @@ describe("install() — agent-specific formats", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         const agentsMd = path.join(tmpDir, "AGENTS.md");
         expect(fs.existsSync(agentsMd)).toBe(true);
@@ -763,6 +852,8 @@ describe("install() — agent-specific formats", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         expect(
             fs.existsSync(path.join(tmpDir, ".agent", "rules", "security.md"))
@@ -782,6 +873,8 @@ describe("install() — profile: lite", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
     });
     afterEach(() => {
@@ -794,6 +887,61 @@ describe("install() — profile: lite", () => {
 
     it("also copies full AGENT_RULES.md as reference", () => {
         expect(fs.existsSync(path.join(tmpDir, "AGENT_RULES.md"))).toBe(true);
+    });
+
+    describe("AGENT_RULES_LITE.md content", () => {
+        let content: string;
+        beforeEach(() => {
+            content = fs.readFileSync(path.join(tmpDir, "AGENT_RULES_LITE.md"), "utf-8");
+        });
+
+        it("stays under 1400 token budget (~5600 chars)", () => {
+            expect(content.length).toBeLessThan(5600);
+        });
+
+        it("contains all 12 security rules", () => {
+            expect(content).toMatch(/CWE-20/);   // Input
+            expect(content).toMatch(/CWE-798/);  // Secrets
+            expect(content).toMatch(/CWE-755/);  // Errors
+            expect(content).toMatch(/shell=False/); // Subprocess
+            expect(content).toMatch(/CWE-362/);  // Concurrency
+        });
+
+        it("contains STRIDE section for threat-model skill", () => {
+            expect(content).toMatch(/STRIDE/);
+            expect(content).toMatch(/Spoofing/);
+            expect(content).toMatch(/Tampering/);
+            expect(content).toMatch(/Repudiation/);
+            expect(content).toMatch(/Elevation/);
+        });
+
+        it("contains ASVS V1-V17 review checklist", () => {
+            expect(content).toMatch(/ASVS/);
+            for (let v = 1; v <= 17; v++) {
+                expect(content).toMatch(new RegExp(`V${v}\\b`));
+            }
+        });
+
+        it("contains severity and verdict criteria", () => {
+            expect(content).toMatch(/CRITICAL/);
+            expect(content).toMatch(/FAIL/);
+            expect(content).toMatch(/CONDITIONAL/);
+            expect(content).toMatch(/PASS/);
+        });
+
+        it("contains all 25 CWE entries", () => {
+            const cwes = [79, 89, 352, 22, 125, 78, 416, 862, 287, 20,
+                          306, 502, 269, 863, 476, 798, 190, 434, 200, 77,
+                          918, 362, 611, 119, 94];
+            for (const cwe of cwes) {
+                expect(content).toMatch(new RegExp(`\\b${cwe}\\b`));
+            }
+        });
+
+        it("references AGENT_RULES.md and policies for more detail", () => {
+            expect(content).toMatch(/AGENT_RULES\.md/);
+            expect(content).toMatch(/policies/);
+        });
     });
 });
 
@@ -815,6 +963,8 @@ describe("install() — non-destructive (skip existing files)", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         expect(fs.readFileSync(rulesPath, "utf-8")).toBe("ORIGINAL CONTENT");
     });
@@ -832,6 +982,8 @@ describe("install() — non-destructive (skip existing files)", () => {
             target: tmpDir,
             gitignore: false,
             omo: false,
+            aegis: false,
+            global: false,
         });
         const content = fs.readFileSync(
             path.join(configPath, "security.md"),
@@ -880,5 +1032,153 @@ describe("install() — error paths", () => {
             exitSpy.mockRestore();
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
+    });
+});
+
+describe("detectAgents", () => {
+    it("returns detected agents only", () => {
+        // Use a temp home dir. Only create .claude and .codex
+        const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "asp-detect-test-"));
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        fs.mkdirSync(path.join(tmpHome, ".codex"), { recursive: true });
+
+        const detected = detectAgents(tmpHome);
+        const ids = detected.map((a) => a.id);
+        expect(ids).toContain("claude");
+        expect(ids).toContain("codex");
+        expect(ids).not.toContain("opencode");
+        expect(ids).not.toContain("antigravity");
+
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+    });
+
+    it("returns empty array when no agents detected", () => {
+        const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "asp-detect-test-"));
+        // No directories created
+        const detected = detectAgents(tmpHome);
+        expect(detected).toEqual([]);
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+    });
+});
+
+describe("installGlobal", () => {
+    let tmpHome: string;
+
+    beforeEach(() => {
+        tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "asp-global-test-"));
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+    });
+
+    it("installs AGENT_RULES.md into claude's globalDir", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        await install({
+            agents: ["claude"],
+            profile: "standard",
+            skills: false,
+            target: ".",
+            gitignore: false,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(
+            fs.existsSync(path.join(tmpHome, ".claude", "AGENT_RULES.md"))
+        ).toBe(true);
+    });
+
+    it("installs CLAUDE.md into claude's globalDir", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        await install({
+            agents: ["claude"],
+            profile: "standard",
+            skills: false,
+            target: ".",
+            gitignore: false,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(
+            fs.existsSync(path.join(tmpHome, ".claude", "CLAUDE.md"))
+        ).toBe(true);
+    });
+
+    it("installs policies/ into claude's globalDir", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        await install({
+            agents: ["claude"],
+            profile: "standard",
+            skills: false,
+            target: ".",
+            gitignore: false,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(
+            fs.existsSync(path.join(tmpHome, ".claude", "policies", "base_policy.yaml"))
+        ).toBe(true);
+    });
+
+    it("does not write .gitignore in global mode", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        await install({
+            agents: ["claude"],
+            profile: "standard",
+            skills: false,
+            target: ".",
+            gitignore: true,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(
+            fs.existsSync(path.join(tmpHome, ".claude", ".gitignore"))
+        ).toBe(false);
+    });
+
+    it("installs to multiple agents simultaneously", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude"), { recursive: true });
+        fs.mkdirSync(path.join(tmpHome, ".codex"), { recursive: true });
+        await install({
+            agents: ["claude", "codex"],
+            profile: "lite",
+            skills: false,
+            target: ".",
+            gitignore: false,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(fs.existsSync(path.join(tmpHome, ".claude", "AGENT_RULES_LITE.md"))).toBe(true);
+        expect(fs.existsSync(path.join(tmpHome, ".codex", "AGENT_RULES_LITE.md"))).toBe(true);
+        expect(fs.existsSync(path.join(tmpHome, ".claude", "CLAUDE.md"))).toBe(true);
+        expect(fs.existsSync(path.join(tmpHome, ".codex", "AGENTS.md"))).toBe(true);
+    });
+
+    it("installs skills to global agent directory", async () => {
+        fs.mkdirSync(path.join(tmpHome, ".claude", "commands"), { recursive: true });
+        await install({
+            agents: ["claude"],
+            profile: "standard",
+            skills: true,
+            target: ".",
+            gitignore: false,
+            omo: false,
+            aegis: false,
+            global: true,
+            _homeDir: tmpHome,
+        });
+        expect(
+            fs.existsSync(path.join(tmpHome, ".claude", "commands", "sast-scan.md"))
+        ).toBe(true);
     });
 });

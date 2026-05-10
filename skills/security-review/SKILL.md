@@ -1,311 +1,169 @@
 ---
 name: security-review
-description: Multi-phase security code review — analyzes git diff and source code for vulnerabilities without requiring external tools or Docker. Applies 3-phase methodology with false-positive filtering and confidence scoring.
+description: Unified security review — Phase 1 agent analysis (diff vs main + STRIDE threat model, no tools needed), Phase 2 tool-based scans (sast-scan, secrets-scan, dependency-scan, container-scan, iac-scan) + fix-findings. Scoped to current branch changes vs main by default.
 ---
 
-# Security Review (No-Tool Code Analysis)
+# Security Review — Unified
 
-Perform a thorough security review of code changes using a structured 3-phase methodology. This skill does not require Docker, Semgrep, or any external tool — it uses the agent's own analysis capabilities.
+Run a complete security review of current changes. Combines agent-based analysis (no tools required) with automated tool scans. Default scope is the current branch diff vs main.
 
-## When to Use
+## Arguments
 
-- After implementing a new feature before merging
-- During PR review to catch security issues early
-- When Docker/Semgrep is not available but a security review is needed
-- As the first step before running `sast-scan` (provides context)
-- When asked to `/security-review` (user-invocable command)
+| Value | Behavior |
+|-------|----------|
+| *(empty)* or `diff` | Full review scoped to `git diff main...HEAD` |
+| `full` | Full review on entire codebase |
+| `agent-only` | Phase 1 only — no tools required |
+| `tools-only` | Phase 2 only — skip agent analysis |
 
 ## Prerequisites
 
-None. This skill uses only:
-- `git diff` to see what changed
-- `Read` tool to examine context files
-- The agent's knowledge of security vulnerabilities
+Phase 1 requires: nothing (agent knowledge only)
+Phase 2 requires: Docker (for Semgrep, Gitleaks, Trivy) or local tool installations
 
 ---
 
-## Phase 1: Repository Context Research
-
-Before analyzing code, build situational awareness:
-
-### 1.1 Understand the tech stack
+## Determine Scope
 
 ```bash
-# Identify languages and frameworks
-ls -la
-cat package.json 2>/dev/null || cat requirements.txt 2>/dev/null || cat go.mod 2>/dev/null || cat pom.xml 2>/dev/null || cat Cargo.toml 2>/dev/null || true
+git log --oneline main...HEAD
+git diff main...HEAD --stat
 ```
 
-Read key project files:
-- `README.md` — project purpose, architecture overview
-- `AGENT_RULES.md` — security rules in force (if present)
-- Main entry points (e.g., `src/index.ts`, `app.py`, `main.go`)
-
-### 1.2 Identify the security context
-
-For each component in scope, determine:
-- **Data sensitivity**: Does it handle PII, credentials, payment data, or health data?
-- **Authentication model**: How does the code verify identity?
-- **Data flow**: Where does data enter? Where does it leave? Where is it stored?
-- **Trust boundaries**: What inputs are from external/untrusted sources?
-- **Privilege level**: Does the code run with elevated permissions?
-
-### 1.3 Get the diff
-
-```bash
-# Changes since last commit
-git diff HEAD
-
-# Or for a specific branch
-git diff main...HEAD
-
-# Or for staged changes only
-git diff --cached
-```
-
-If reviewing a specific file:
-```bash
-git log --oneline -10  # See recent commits
-git show <commit>      # See specific commit
-```
+- `diff` (default): review `git diff main...HEAD`
+- `full`: review entire repository
+- Review main branch only if a specific fix requires context not inferrable from the diff — document why when doing so
 
 ---
 
-## Phase 2: Comparative Analysis
+## Phase 1 — Agent Analysis (always runs first)
 
-Compare the changed code against established security patterns.
+### 1.1 Diff Analysis
 
-### 2.1 Check against AGENT_RULES.md
+Review every changed file in scope for security vulnerabilities using agent knowledge.
 
-For each change in the diff, verify compliance with:
+For each changed file, check:
 
-| Rule | Check |
-|------|-------|
-| Rule 1: Input Validation | Are all new inputs validated at trust boundaries? |
-| Rule 2: Injection Prevention | Any new SQL/OS/LDAP/code constructions? |
-| Rule 3: Secrets Management | Any new hardcoded values? Any secret logging? |
-| Rule 4: Auth & Authorization | Any new endpoints without auth checks? |
-| Rule 5: Error Handling | Any new bare exceptions? Stack traces to users? |
-| Rule 6: Cryptography | Any new crypto code? Using approved algorithms? |
-| Rule 7: Dependencies | Any new dependencies added? |
-| Rule 8: Subprocess | Any new shell commands? Using shell=True/ShellExecute? |
-| Rule 9: Data Protection | Any new PII handling or storage? |
-| Rule 10: Concurrency | Any new shared state or file operations? |
-| Rule 11: API Security | Any new endpoints? Auth enforced on all? |
+**Injection** (CWE-89, CWE-78, CWE-79):
+- SQL: are queries parameterized? No string concatenation into SQL
+- Shell: no `shell=True` / `exec()` with user input
+- HTML output: is user input escaped?
 
-### 2.2 Compare with existing codebase patterns
+**Authentication & Authorization** (CWE-287, CWE-862, CWE-306):
+- New endpoints: are they behind auth checks?
+- Permission checks: is authorization verified before action?
+- Session management: tokens stored securely?
 
-Look for:
-- **Inconsistencies**: Does the new code follow the same security patterns as existing code?
-- **Regressions**: Does the new code remove or bypass existing security controls?
-- **New patterns**: Does the new code introduce a pattern not seen before that could be dangerous?
+**Cryptography** (CWE-327, CWE-330, CWE-326):
+- Weak algorithms: MD5, SHA1, DES, RC4 for security purposes?
+- Insufficient randomness: `Math.random()` for tokens/secrets?
+- Key length: RSA < 2048, AES < 128?
 
-```bash
-# Find similar patterns in the codebase for comparison
-grep -r "db.query\|execute\|cursor" --include="*.py" -l 2>/dev/null | head -5
-grep -r "subprocess\|os.system\|exec\|eval" --include="*.py" -l 2>/dev/null | head -5
-grep -r "request.args\|request.form\|req.body\|req.query" --include="*.ts" --include="*.js" -l 2>/dev/null | head -5
+**Secret exposure** (CWE-798, CWE-532):
+- Hardcoded credentials, API keys, tokens in code or config?
+- Secrets logged or included in error messages?
+
+**Input validation** (CWE-20):
+- External inputs validated at trust boundaries?
+- Path traversal possible? (CWE-22)
+
+**Error handling** (CWE-209):
+- Stack traces or internal details exposed to end users?
+
+Apply OWASP ASVS 5.0.0 (V1-V17) and CWE/SANS Top 25 2025.
+
+Output Phase 1 findings as a table:
+```
+| Severity | CWE       | File:Line        | Description                         |
+|----------|-----------|------------------|-------------------------------------|
+| HIGH     | CWE-089   | src/db.ts:42     | SQL query concatenates user input   |
 ```
 
-### 2.3 Identify the attack surface changes
+### 1.2 STRIDE Threat Model on the Diff
 
-The diff changes the attack surface. For each addition:
-- **New endpoint**: Who can call it? With what input?
-- **New function with parameters**: What happens with malicious input?
-- **New data store operation**: Is the query parameterized?
-- **New external call**: Is the target URL validated?
+For each new feature, endpoint, or attack surface introduced in the diff, apply STRIDE:
+
+- **Spoofing** — can an attacker impersonate a user or system?
+- **Tampering** — can data in transit or at rest be modified?
+- **Repudiation** — can actions be denied without audit trail?
+- **Information Disclosure** — can sensitive data be exposed?
+- **Denial of Service** — can resources be exhausted or disrupted?
+- **Elevation of Privilege** — can a lower-privileged actor gain higher access?
+
+Output: threat table with likelihood (H/M/L) and recommended control.
 
 ---
 
-## Phase 3: Vulnerability Assessment
+## Phase 2 — Tool-Based Scans
 
-Perform data flow analysis on the identified attack surface.
+Run applicable scan skills in order. Skip a scan if the tool is unavailable — note which scans were skipped.
 
-### 3.1 Trace data flows
+### 2.1 sast-scan
 
-For each new input point:
-1. **Source**: Where does data come from? (user input, API, file, DB, env var, queue)
-2. **Transform**: What happens to the data? (parsing, encoding, formatting)
-3. **Sink**: Where does data go? (DB, OS command, HTML output, log, file, network)
-4. **Controls**: What validation/sanitization exists between source and sink?
+Follow the `sast-scan` skill instructions.
+Scope: files changed in diff (or full repo if `full` argument).
 
-### 3.2 Check injection paths (CWE-89, CWE-78, CWE-79, CWE-94)
+### 2.2 secrets-scan
 
-**SQL Injection (CWE-89)**
-```python
-# VULNERABLE: string concatenation
-query = f"SELECT * FROM users WHERE id = {user_id}"
+Follow the `secrets-scan` skill instructions.
+Scope: always full repo (secrets may be in any tracked file).
 
-# SAFE: parameterized
-query = "SELECT * FROM users WHERE id = %s"
-cursor.execute(query, (user_id,))
-```
+### 2.3 dependency-scan
 
-**OS Command Injection (CWE-78)**
-```python
-# VULNERABLE: shell=True with user input
-subprocess.run(f"ls {user_path}", shell=True)
+Follow the `dependency-scan` skill instructions.
+Run if a `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, or similar manifest is present.
 
-# SAFE: shell=False, validated arguments
-subprocess.run(["ls", validated_path], shell=False)
-```
+### 2.4 container-scan
 
-**XSS (CWE-79)**
-```javascript
-// VULNERABLE: innerHTML with unsanitized input
-element.innerHTML = userInput;
+Follow the `container-scan` skill instructions.
+Run only if a `Dockerfile`, `docker-compose.yml`, or container image reference is present or changed.
 
-// SAFE: textContent or sanitized
-element.textContent = userInput;
-// or sanitize with DOMPurify before innerHTML
-```
+### 2.5 iac-scan
 
-### 3.3 Check secret management (CWE-798)
+Follow the `iac-scan` skill instructions.
+Run only if `.tf`, `.yaml` (k8s/Helm), or CloudFormation files are present or changed.
 
-Look for patterns like:
-```
-api_key = "sk-..."
-password = "hardcoded"
-token = "eyJ..."
-SECRET_KEY = "my-secret"
-```
+### 2.6 Consolidate findings
 
-Also check: Are secrets being logged? Are they in error messages?
-
-### 3.4 Check authentication/authorization (CWE-862, CWE-863)
-
-For each new route/endpoint/function:
-- Is there an auth check before sensitive logic?
-- Is authorization checked server-side (not just client-side)?
-- Is ownership validated (can user A access user B's data)?
-
-### 3.5 Check error handling (CWE-755)
-
-```python
-# VULNERABLE: bare exception + stack trace to user
-try:
-    result = process(data)
-except:
-    return {"error": str(e), "trace": traceback.format_exc()}
-
-# SAFE: typed exception + generic message
-try:
-    result = process(data)
-except ValueError as e:
-    logger.error("Validation error", exc_info=True)
-    return {"error": "Invalid input"}
-```
+Merge Phase 1 and Phase 2 findings into a single list.
+Deduplicate: if Phase 1 and a tool both flag the same CWE in the same file at the same line, keep one entry and note both sources.
 
 ---
 
-## False Positive Exclusions
+## Phase 3 — Remediation
 
-Do NOT report as vulnerabilities:
+Follow the `fix-findings` skill instructions on the consolidated finding set.
 
-1. **Test files** (`test_*.py`, `*.test.ts`, `__tests__/`, `spec/`) — intentional vulnerable samples in tests
-2. **Mock data in tests** — fake credentials, sample tokens, example SQL queries
-3. **Comments describing vulnerabilities** — documentation is not code
-4. **Security tool definitions** — Semgrep rules, CodeQL queries, test exploits
-5. **Minified/compiled output** — `dist/`, `build/`, `*.min.js` — review source, not output
-6. **Vendor code** — `node_modules/`, `vendor/`, `third_party/` — dependency scans cover these
-7. **Example code with "DO NOT USE" warnings** — clearly marked as anti-examples
-8. **Configuration templates with explicit placeholders** — `"YOUR_API_KEY_HERE"`, `"<REPLACE_ME>"`
-9. **Dead code with no reachable path** — verify code path is actually reachable
-10. **Local-only debug utilities** — tools that run only in development environment
-11. **SHA checksums that look like secrets** — 40-hex-char strings that are content hashes
-12. **Base64-encoded images in CSS/HTML** — `data:image/png;base64,...`
-13. **Generated code** — `*.generated.ts`, `*.pb.go`, `*.pb.js` — review the generator, not output
-14. **Type definition files** — `*.d.ts` — no runtime behavior
-15. **Configuration files outside trust boundaries** — `pyproject.toml` version strings, etc.
-16. **Intentionally public constants** — public API versions, public rate limit values
-17. **Security headers being SET** — setting `Content-Security-Policy` is NOT a CSP bypass
-18. **Already-reported findings** — do not duplicate findings from `sast-report.json`
+Priority order: CRITICAL → HIGH → MEDIUM → LOW (skip INFO unless explicitly requested by the user).
+
+After fixes are applied:
+- Re-run affected scan skills to verify findings are resolved
+- Update the findings table with "Fixed" or "Unresolved" status for each item
 
 ---
 
-## Confidence Scoring
+## Final Report
 
-Rate each finding with a confidence score:
+Present a summary after all phases complete:
 
-| Score | Label | Meaning |
-|-------|-------|---------|
-| 90–100% | **CONFIRMED** | Exploitable code path identified with direct evidence |
-| 80–89% | **LIKELY** | Probable vulnerability; pending one piece of context to confirm |
-| 70–79% | **POSSIBLE** | Pattern matches known vulnerability; requires manual verification |
-| < 70% | **SKIP** | Do not report — too speculative without more context |
-
----
-
-## Output Format
-
-```markdown
-# Security Review Report
-
-**Scope:** [files/commits reviewed]
-**Date:** [YYYY-MM-DD]
-**Reviewer:** Aegis (agent-security-policies security-review skill)
-**Methodology:** 3-Phase (Context Research → Comparative Analysis → Vulnerability Assessment)
-
-## Executive Summary
-
-**Verdict:** [PASS / CONDITIONAL / FAIL]
-**Total findings:** X (Y critical, Z high, W medium)
-
-## Findings
-
-### [FINDING-001] — [Short title] — 🔴 CRITICAL (Confidence: 95%)
-
-**File:** `path/to/file.py` (line X–Y)
-**CWE:** CWE-89 (SQL Injection)
-**AGENT_RULES.md:** Rule 2: Injection Prevention
-
-**Vulnerable Code:**
-```python
-[code snippet]
 ```
+## Security Review Summary
 
-**Attack Scenario:**
-[How an attacker exploits this — be specific]
+**Scope:** git diff main...HEAD (N files changed)
+**Phases completed:** Agent analysis, Threat model, [list tools run]
 
-**Recommended Fix:**
-```python
-[fixed code snippet]
+### Findings
+
+| Severity | Count | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| CRITICAL | N     | N     | N         |
+| HIGH     | N     | N     | N         |
+| MEDIUM   | N     | N     | N         |
+| LOW      | N     | N     | N         |
+
+### Threats Identified (STRIDE)
+[summary of threat model output]
+
+### Skipped Scans
+[list any tools that were unavailable with reason]
 ```
-
-**References:** OWASP ASVS V2.3, CWE-89
-
----
-
-## False Positives Excluded
-
-| Pattern | Reason Excluded |
-|---------|----------------|
-| [line N in file X] | Test file — intentional mock data |
-
-## What Was NOT Covered
-
-- Container/OS vulnerabilities (use `container-scan` skill)
-- Known CVEs in dependencies (use `dependency-scan` skill)
-- Leaked secrets in git history (use `secrets-scan` skill)
-- Infrastructure misconfigurations (use `iac-scan` skill)
-```
-
-## Verdict Criteria
-
-- ❌ **FAIL**: Any CRITICAL finding, or ≥3 HIGH findings
-- ⚠️ **CONDITIONAL**: 1–2 HIGH findings, or ≥3 MEDIUM findings
-- ✅ **PASS**: No HIGH+, ≤2 MEDIUM findings
-
-## Next Steps
-
-After this review:
-1. Fix all CRITICAL and HIGH findings before merging
-2. For deeper scanning: run `sast-scan` (requires Semgrep/Docker)
-3. Use `fix-findings` skill to apply fixes systematically
-
-## References
-
-- [AGENT_RULES.md](../../AGENT_RULES.md) — Security rules in force
-- [policies/owasp_asvs.yaml](../../policies/owasp_asvs.yaml) — ASVS checklist
-- [policies/owasp_proactive_controls.yaml](../../policies/owasp_proactive_controls.yaml) — Proactive Controls
-- [policies/cwe_top25.yaml](../../policies/cwe_top25.yaml) — CWE Top 25

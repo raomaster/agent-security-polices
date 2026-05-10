@@ -84,21 +84,17 @@ describe("cross-agent skill format compatibility", () => {
         }
     });
 
-    it("only opencode agent has commands + skills + extraPaths (most capable)", () => {
+    it("only opencode agent has skills + extraPaths (most capable)", () => {
         const oc = getAgentById("opencode")!;
-        expect(oc.commandFormat.type).not.toBe("none");
         expect(oc.skillFormat.type).not.toBe("none");
         expect(oc.extraPaths).toBeDefined();
         expect(oc.extraPaths!.length).toBeGreaterThan(0);
     });
 
-    it("OpenCode uses .opencode/ prefix (not .claude/) for skills and commands", () => {
+    it("OpenCode uses .opencode/ prefix (not .claude/) for skills", () => {
         const oc = getAgentById("opencode")!;
         if (oc.skillFormat.type === "copy") {
             expect(oc.skillFormat.destPattern).toMatch(/^\.opencode\//);
-        }
-        if (oc.commandFormat.type === "copy") {
-            expect(oc.commandFormat.destPattern).toMatch(/^\.opencode\//);
         }
     });
 

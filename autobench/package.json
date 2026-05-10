@@ -1,0 +1,24 @@
+{
+  "name": "autobench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AutoBench - Security skills benchmarking and auto-improvement loop",
+  "type": "module",
+  "scripts": {
+    "bench": "tsx run.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "tsx": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.0"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.77.0"
+  }
+}

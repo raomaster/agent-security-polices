@@ -1,5 +1,6 @@
 ---
-description: "Create a labeled safety checkpoint (git stash) before a risky operation — invoke this manually when you know a large or destructive change is coming"
+name: checkpoint
+description: Create a labeled safety checkpoint (git stash) before a risky operation — invoke manually when a large or destructive change is coming.
 ---
 
 Create a named git stash checkpoint so you can safely roll back to this exact state if needed.

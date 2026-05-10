@@ -27,3 +27,12 @@ __pycache__/
 *.bak
 *.log
 .env
+
+# Coverage reports (auto-generated)
+coverage/
+lcov.info
+
+# AutoBench
+autobench/node_modules/
+results/results.tsv
+results/dashboard/index.html

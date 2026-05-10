@@ -1,6 +1,6 @@
 {
   "name": "agent-security-policies",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Portable, standards-backed security policies for any AI coding agent. One command to install OWASP, CWE, NIST rules + security skills.",
   "keywords": [
     "security",
@@ -38,7 +38,6 @@
     "docs/",
     "policies/",
     "skills/",
-    "commands/",
     "AGENT_RULES.md",
     "AGENT_RULES_LITE.md"
   ],

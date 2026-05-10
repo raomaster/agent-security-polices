@@ -1,5 +1,9 @@
 // src/agents.ts — Agent configuration definitions
 
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+
 export interface AgentConfig {
     /** Display name */
     name: string;
@@ -15,10 +19,18 @@ export interface AgentConfig {
     directories: string[];
     /** Skill installation config */
     skillFormat: SkillFormat;
-    /** Command installation config */
-    commandFormat: CommandFormat;
     /** Extra paths to add to .gitignore (beyond configPath and skill dirs) */
     extraPaths?: string[];
+    /** Absolute path to the agent's global config directory. */
+    globalDir: (homeDir: string) => string;
+    /** Config file path relative to globalDir. */
+    globalConfigPath: string;
+    /** Skill installation paths relative to globalDir. */
+    globalSkillFormat: SkillFormat;
+    /** Directories to create inside globalDir before installing. */
+    globalDirectories: string[];
+    /** Returns true if this agent appears to be installed on this machine. Never throws. */
+    detect: (homeDir?: string) => boolean;
 }
 
 export type SkillFormat =
@@ -27,16 +39,19 @@ export type SkillFormat =
     | { type: "append"; destFile: string }         // e.g. append to AGENTS.md
     | { type: "none" };
 
-export type CommandFormat =
-    | { type: "copy"; destPattern: string }       // e.g. .opencode/command/{command}.md
-    | { type: "strip-frontmatter"; destPattern: string }  // e.g. .github/prompts/{command}.prompt.md
-    | { type: "append"; destFile: string }
-    | { type: "none" };
-
-export const AEGIS_AGENT_CONTENT = `---
+/**
+ * Generate Aegis agent frontmatter + body.
+ * @param model  Optional model string to embed in frontmatter.
+ *               - OpenCode: full provider/model-id (e.g. "anthropic/claude-sonnet-4-6")
+ *               - Claude Code: shorthand (e.g. "sonnet")
+ *               - Omit to let the platform use its configured default.
+ */
+export function generateAegisContent(model?: string): string {
+    const modelLine = model ? `model: ${model}\n` : "";
+    return `---
 name: Aegis
 description: Security specialist agent. Runs security scans, reviews code for vulnerabilities, applies OWASP/CWE/NIST standards, and fixes findings. Delegate security-related tasks here.
-mode: all
+${modelLine}mode: all
 ---
 
 # Aegis — Security Specialist Agent
@@ -47,26 +62,20 @@ You are **Aegis**, a security specialist AI agent built on \`agent-security-poli
 
 Systematically find and fix security vulnerabilities in code, infrastructure, and AI agent behavior. Enforce OWASP, CWE/SANS, NIST, and Proactive Controls standards on every task.
 
-## Security Skills Available
+## Skills Available
 
-| Skill | Tool | Purpose |
+| Skill | Type | Purpose |
 |-------|------|---------|
-| \`sast-scan\` | Semgrep | CWE-mapped code vulnerabilities |
-| \`secrets-scan\` | Gitleaks | Hardcoded credentials |
-| \`dependency-scan\` | Trivy | Known CVEs in packages |
-| \`container-scan\` | Trivy | Container image misconfigurations |
-| \`iac-scan\` | Trivy | Terraform/Helm/K8s issues |
+| \`sast-scan\` | Tool | CWE-mapped code vulnerabilities |
+| \`secrets-scan\` | Tool | Hardcoded credentials |
+| \`dependency-scan\` | Tool | Known CVEs in packages |
+| \`container-scan\` | Tool | Container image misconfigurations |
+| \`iac-scan\` | Tool | Terraform/Helm/K8s issues |
 | \`threat-model\` | Agent | STRIDE threat modeling |
 | \`fix-findings\` | Agent | Automated fixes from any scan output |
-| \`security-review\` | Agent | Multi-phase code review (no Docker) |
-
-## Commands Available
-
-| Command | Purpose |
-|---------|---------|
-| \`/checkpoint\` | Create a safety stash before risky changes |
-| \`/rollback\` | Revert to a previous checkpoint |
-| \`/security-review\` | Full security review: code + scans + findings |
+| \`security-review\` | Agent+Tools | Full review: agent analysis + all scans |
+| \`checkpoint\` | Agent | Create safety stash before risky changes |
+| \`rollback\` | Agent | Revert to a previous checkpoint |
 
 ## Working Method
 
@@ -83,6 +92,10 @@ Systematically find and fix security vulnerabilities in code, infrastructure, an
 
 Never force push. Never --no-verify. Never \`git add -A\` blindly. Never modify git config. Never commit .env. Prefer new commits over --amend. See Rule 12 in AGENT_RULES.md.
 `;
+}
+
+/** Default Aegis content with no model — for backwards compatibility and tests */
+export const AEGIS_AGENT_CONTENT = generateAegisContent();
 
 export const SUPPORTED_AGENTS: AgentConfig[] = [
     {
@@ -97,9 +110,17 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
             type: "strip-frontmatter",
             destPattern: ".github/prompts/{skill}.prompt.md",
         },
-        commandFormat: {
-            type: "strip-frontmatter",
-            destPattern: ".github/prompts/{command}.prompt.md",
+        globalDir: (h) => path.join(h, ".github"),
+        globalConfigPath: "copilot-instructions.md",
+        globalSkillFormat: { type: "strip-frontmatter", destPattern: "prompts/{skill}.prompt.md" },
+        globalDirectories: ["prompts"],
+        detect: (h = os.homedir()) => {
+            try {
+                if (fs.existsSync(path.join(h, ".github", "copilot-instructions.md"))) return true;
+                const extDir = path.join(h, ".vscode", "extensions");
+                if (!fs.existsSync(extDir)) return false;
+                return fs.readdirSync(extDir).some((d) => d.startsWith("github.copilot"));
+            } catch { return false; }
         },
     },
     {
@@ -111,7 +132,13 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
         generateConfig: (instructions) =>
             `# Project Agent Instructions\n\n## Security Policy\n\n${instructions}\n`,
         skillFormat: { type: "append", destFile: "AGENTS.md" },
-        commandFormat: { type: "none" },
+        globalDir: (h) => path.join(h, ".codex"),
+        globalConfigPath: "AGENTS.md",
+        globalSkillFormat: { type: "copy", destPattern: "skills/{skill}/SKILL.md" },
+        globalDirectories: ["skills"],
+        detect: (h = os.homedir()) => {
+            try { return fs.existsSync(path.join(h, ".codex")); } catch { return false; }
+        },
     },
     {
         id: "claude",
@@ -125,9 +152,12 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
             type: "strip-frontmatter",
             destPattern: ".claude/commands/{skill}.md",
         },
-        commandFormat: {
-            type: "strip-frontmatter",
-            destPattern: ".claude/commands/{command}.md",
+        globalDir: (h) => path.join(h, ".claude"),
+        globalConfigPath: "CLAUDE.md",
+        globalSkillFormat: { type: "strip-frontmatter", destPattern: "commands/{skill}.md" },
+        globalDirectories: ["commands"],
+        detect: (h = os.homedir()) => {
+            try { return fs.existsSync(path.join(h, ".claude")); } catch { return false; }
         },
     },
     {
@@ -142,7 +172,13 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
             type: "copy",
             destPattern: ".agent/skills/{skill}/SKILL.md",
         },
-        commandFormat: { type: "none" },
+        globalDir: (h) => path.join(h, ".agent"),
+        globalConfigPath: "rules/security.md",
+        globalSkillFormat: { type: "copy", destPattern: "skills/{skill}/SKILL.md" },
+        globalDirectories: ["rules", "skills"],
+        detect: (h = os.homedir()) => {
+            try { return fs.existsSync(path.join(h, ".agent")); } catch { return false; }
+        },
     },
     {
         id: "opencode",
@@ -156,29 +192,28 @@ export const SUPPORTED_AGENTS: AgentConfig[] = [
             type: "copy",
             destPattern: ".opencode/skills/{skill}/SKILL.md",
         },
-        commandFormat: {
-            type: "copy",
-            destPattern: ".opencode/command/{command}.md",
-        },
         extraPaths: [".opencode/agents/"],
+        globalDir: (h) => path.join(h, ".config", "opencode"),
+        globalConfigPath: "rules/security.md",
+        globalSkillFormat: { type: "copy", destPattern: "skills/{skill}/SKILL.md" },
+        globalDirectories: ["rules", "skills", "agents", "command"],
+        detect: (h = os.homedir()) => {
+            try { return fs.existsSync(path.join(h, ".config", "opencode")); } catch { return false; }
+        },
     },
 ];
 
 export const SKILLS_LIST = [
-    { id: "sast-scan", tool: "Semgrep", description: "CWE code vulnerabilities" },
-    { id: "secrets-scan", tool: "Gitleaks", description: "Hardcoded credentials" },
-    { id: "dependency-scan", tool: "Trivy", description: "CVE in dependencies" },
-    { id: "container-scan", tool: "Trivy", description: "CVE in containers" },
-    { id: "iac-scan", tool: "Trivy", description: "IaC misconfigurations" },
-    { id: "threat-model", tool: "Agent", description: "STRIDE threat modeling" },
-    { id: "fix-findings", tool: "Agent", description: "Remediate scan findings" },
-    { id: "security-review", tool: "Agent", description: "Multi-phase code review (no Docker)" },
-];
-
-export const COMMANDS_LIST = [
-    { id: "security-review", description: "Run security review + scan skills + findings" },
-    { id: "checkpoint", description: "Create a labeled git stash checkpoint" },
-    { id: "rollback", description: "Revert to a previous checkpoint" },
+    { id: "sast-scan",        tool: "Semgrep", description: "CWE code vulnerabilities" },
+    { id: "secrets-scan",     tool: "Gitleaks", description: "Hardcoded credentials" },
+    { id: "dependency-scan",  tool: "Trivy", description: "CVE in dependencies" },
+    { id: "container-scan",   tool: "Trivy", description: "CVE in containers" },
+    { id: "iac-scan",         tool: "Trivy", description: "IaC misconfigurations" },
+    { id: "threat-model",     tool: "Agent", description: "STRIDE threat modeling" },
+    { id: "security-review",  tool: "Agent+Tools", description: "Full review: agent analysis + all scans" },
+    { id: "fix-findings",     tool: "Agent", description: "Remediate scan findings" },
+    { id: "checkpoint",       tool: "Agent", description: "Create labeled git stash checkpoint" },
+    { id: "rollback",         tool: "Agent", description: "Revert to a previous checkpoint" },
 ];
 
 export const PROFILES = [

@@ -23,6 +23,7 @@ describe("parseArgs — defaults", () => {
             gitignore: false,
             omo: false,
             aegis: false,
+            global: false,
             help: false,
             version: false,
             list: false,
