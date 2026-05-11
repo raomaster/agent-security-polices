@@ -71,20 +71,25 @@ function runSemgrep(caseDir: string, file: string, filePath: string): ScanFindin
 
 function runGitleaks(caseDir: string, file: string, filePath: string): ScanFinding[] {
   const useDocker = canUseDocker();
-  const reportPath = `/tmp/gitleaks-${Date.now()}.json`;
+  // Docker: write report inside /src (already mounted) so the host can read it after --rm
+  // Local: write to /tmp to avoid polluting the source directory
+  const hostReportPath = useDocker
+    ? `${caseDir}/.gitleaks-report.json`
+    : `/tmp/gitleaks-${Date.now()}.json`;
+  const containerReportPath = '/src/.gitleaks-report.json';
 
   const cmd = useDocker ? 'docker' : 'gitleaks';
   const args = useDocker
     ? ['run', '--rm', '-v', `${caseDir}:/src`, 'zricethezav/gitleaks:latest',
-       'detect', '--source=/src', '--report-format=json', `--report-path=${reportPath}`, '--no-git', '--exit-code=0']
-    : ['detect', `--source=${caseDir}`, '--report-format=json', `--report-path=${reportPath}`, '--no-git', '--exit-code=0'];
+       'detect', '--source=/src', '--report-format=json', `--report-path=${containerReportPath}`, '--no-git', '--exit-code=0']
+    : ['detect', `--source=${caseDir}`, '--report-format=json', `--report-path=${hostReportPath}`, '--no-git', '--exit-code=0'];
 
   try {
     execFileSync(cmd, args, { timeout: 30_000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
 
-    if (!useDocker && existsSync(reportPath)) {
-      const report = JSON.parse(readFileSync(reportPath, 'utf-8'));
-      unlinkSync(reportPath);
+    if (existsSync(hostReportPath)) {
+      const report = JSON.parse(readFileSync(hostReportPath, 'utf-8'));
+      unlinkSync(hostReportPath);
       return report
         .filter((f: any) => f.File === file || f.File?.endsWith('/' + file))
         .map((f: any) => ({
